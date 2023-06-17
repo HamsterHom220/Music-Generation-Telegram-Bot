@@ -8,9 +8,8 @@ Aim: to provide a tool that helps composers write music (instead of generating m
     state-of-the-art solutions.
 Limitations: only the most common time signature (4/4) is supported.
 """
-import random
-import math
-from operator import itemgetter
+from random import randint
+from math import ceil
 import music21
 from mido import Message, MidiFile, MidiTrack
 from pychord import Chord
@@ -76,10 +75,16 @@ NOTE_TO_NUMBER = {
 }
 
 '''Parent class for all generator algorithms.'''
+
+
 class Generator:
     # data to be extracted from input
     notes = []
     durations = []
+    total_duration = 0
+    bars_count = 0
+    residue = 0  # the number of accompaniment chords (notes per track) that need to be generated for the last bar
+    # if the input ends not exactly at the end of the last bar
     lowest_octave = 7
     lowest_octave_per_quarter_of_bar = []
     key = None  # features a tonic note and its corresponding chords
@@ -98,28 +103,30 @@ class Parser:
         self.generator = generator
 
     def extract_notes(self):
-        total_duration = 0
         for track in INPUT_FILE.tracks:
             for token in track:
                 # token.time is the time that elapsed since the previous token's time value
                 # note_on with time=0 is equivalent to note_off
                 if not token.is_meta:
-                    if token.type=="note_off" or (token.type=="note_on" and token.time == 0):
-                        self.generator.notes.append(token.note%12)
+                    if token.type == "note_off" or (token.type == "note_on" and token.time == 0):
+                        self.generator.notes.append(token.note % 12)
                         self.generator.durations.append(token.time)
-                        total_duration += token.time
+                        self.generator.total_duration += token.time
 
                         octave = (token.note // 12) - 1
                         if octave < self.generator.lowest_octave:
                             self.generator.lowest_octave = octave
 
-                        if total_duration >= TICKS_PER_QUARTER_OF_BAR:
-                            for i in range(total_duration // TICKS_PER_QUARTER_OF_BAR):
+                        if self.generator.total_duration >= TICKS_PER_QUARTER_OF_BAR:
+                            for i in range(self.generator.total_duration // TICKS_PER_QUARTER_OF_BAR):
                                 self.generator.lowest_octave_per_quarter_of_bar.append(self.generator.lowest_octave)
-                            total_duration = total_duration % TICKS_PER_QUARTER_OF_BAR
+                            self.generator.total_duration = self.generator.total_duration % TICKS_PER_QUARTER_OF_BAR
                             self.generator.lowest_octave = 7
-                    #elif token.type == "note_on":
+                    # elif token.type == "note_on":
                     #    pass
+        self.generator.bars_count = self.generator.total_duration // TICKS_PER_BAR
+        self.generator.residue = ceil(self.generator.total_duration % TICKS_PER_BAR / TICKS_PER_QUARTER_OF_BAR)
+
     def identify_key(self):
         key = music21.converter.parse(INPUT_FILENAME).analyze('key')
         self.generator.key = key.name
@@ -135,27 +142,45 @@ class EvolutionaryAlgorithm(Generator):
         self.generations = generations
 
     def generate_chords(self):
+        """Generates chords based on the data collected by parser according to the music theory principles."""
         chords = []
         tonic_num = NOTE_TO_NUMBER[self.tonic]
         chord_types = CHORD_SEQ_MINOR
-        if self.key.split(" ")[-1]=="major":
+        if self.key.split(" ")[-1] == "major":
             chord_types = CHORD_SEQ_MAJOR
-            
+
         i = 0
         for chord_type in chord_types:
             chord_name = NUMBER_TO_NOTE[tonic_num]
-            if chord_type=="DIMINISHED":
+            if chord_type == "DIMINISHED":
                 chord_name += "dim"
-            elif chord_type=="MINOR":
+            elif chord_type == "MINOR":
                 chord_name += "m"
             chords.append(Chord(chord_name))
-            
-            tonic_num = (tonic_num + self.mode[i])%12
+
+            tonic_num = (tonic_num + self.mode[i]) % 12
             i += 1
         return chords
-            
 
-    # TODO evolution methods: get initial population, crossover, mutation
+    def compute_adaptation(self,chromosome):
+        #TODO
+        return 0
+
+    def generate_population(self):
+        """For each creature in the population creates a chromosome -
+        random chord sequence consisting of the chords provided by generate_chords() method."""
+        init_chords = self.generate_chords()
+        population = []
+        for i in range(self.population_size):
+            chromosome = []
+            for j in range(4*self.bars_count+self.residue):
+                chromosome.append(init_chords[randint(0,6)])
+
+            adaptation = self.compute_adaptation(chromosome)
+            population.append((adaptation,chromosome))
+        return population
+
+    # TODO evolution methods: generate population, crossover, mutation
     # TODO fitness calculation (adaptation measures: chord validation, progression validation, repetition check)
     # TODO runner
 
@@ -164,4 +189,4 @@ g = Generator()
 p = Parser(g)
 p.extract_notes()
 p.identify_key()
-print("key:",g.key,", tonic:",g.tonic)
+print("key:", g.key, ", tonic:", g.tonic)
