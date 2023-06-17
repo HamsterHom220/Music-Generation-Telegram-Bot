@@ -136,13 +136,14 @@ class Parser:
 
 
 class EvolutionaryAlgorithm(Generator):
-    def __init__(self, population_size, generations):
+    def __init__(self, population_size=200, generations=500, mutation_probability_percent=10):
         super().__init__()
         self.population_size = population_size
         self.generations = generations
+        self.mutation_probability_percent = mutation_probability_percent
 
     def generate_chords(self):
-        """Generates chords based on the data collected by parser according to the music theory principles."""
+        """Generates and returns chords based on the data collected by parser according to the music theory principles."""
         chords = []
         tonic_num = NOTE_TO_NUMBER[self.tonic]
         chord_types = CHORD_SEQ_MINOR
@@ -163,12 +164,22 @@ class EvolutionaryAlgorithm(Generator):
         return chords
 
     def compute_adaptation(self,chromosome):
-        #TODO
+        """
+        Measures and returns the adaptation of a given chromosome according to the following criteria:
+        chord validation, progression validation, repetition check. For each of them there is a method
+        that returns a certain score for each of the given chromosomes. These scores define the adaptation value.
+        """
+        # TODO implement measurement
         return 0
 
     def generate_population(self):
-        """For each creature in the population creates a chromosome -
-        random chord sequence consisting of the chords provided by generate_chords() method."""
+        """
+        For each creature in the population creates a chromosome -
+        random chord sequence consisting of the chords provided by generate_chords() method.
+        Returns a list of tuples per each of the generated creatures. Each tuple contains
+        adaptation value and the chromosome that is its owner.
+        Basically, a chromosome is a chord sequence.
+        """
         init_chords = self.generate_chords()
         population = []
         for i in range(self.population_size):
@@ -180,9 +191,53 @@ class EvolutionaryAlgorithm(Generator):
             population.append((adaptation,chromosome))
         return population
 
-    # TODO evolution methods: generate population, crossover, mutation
-    # TODO fitness calculation (adaptation measures: chord validation, progression validation, repetition check)
-    # TODO runner
+    def validate_chord(self):
+        # TODO implement measurement
+        return 0
+
+    def validate_progression(self):
+        # TODO implement measurement
+        return 0
+
+    def check_repetitions(self):
+        # TODO implement measurement
+        return 0
+
+    def crossover(self,chromosome1,chromosome2):
+        """
+        This method will be applied to the half of the population with the highest adaptation values to
+        replace the other half with a new generation of the same size as this half.
+
+        Idea: "...by mating two individuals with different but desirable features,
+        we can produce an offspring that combines both of those features."
+        [Taken from Intro to Evolutionary Computing by A.E. Eiben , J.E. Smith]
+
+        In the following implementation, each element of the child-chromosome is
+        an element from the same position of one of its parents. The parent to share an element
+        is chosen with 50/50 chance.
+        """
+        # TODO implement crossover
+        pass
+
+    def mutation(self):
+        """
+        This method will be applied to the whole population. As a result, in every chromosome,
+        with the probability passed to the EvolutionaryAlgorithm constructor,
+        two random elements (chords) will be swapped.
+
+        Idea: "Darwin’s insight was that small, random variations – mutations – in phenotypic traits occur during reproduction
+        from generation to generation. Through these variations, new combinations of
+        traits occur and get evaluated. The best ones survive and reproduce, and so
+        evolution progresses."
+        [Taken from Intro to Evolutionary Computing by A.E. Eiben , J.E. Smith]
+        """
+        # TODO implement mutation
+        pass
+
+    def run(self):
+        # TODO implement evolutionary algorithm runner
+        #  (it will incorporate population generation, adaptation measurements, crossover, and mutations)
+        pass
 
 
 g = Generator()
