@@ -126,10 +126,14 @@ class Parser:
         self.generator.tonic = key.tonic.name
 
     # TODO output file creation
-    pass
 
 
 class EvolutionaryAlgorithm(Generator):
+    def __init__(self, population_size, generations):
+        super().__init__()
+        self.population_size = population_size
+        self.generations = generations
+
     def generate_chords(self):
         chords = []
         tonic_num = NOTE_TO_NUMBER[self.tonic]
@@ -151,10 +155,9 @@ class EvolutionaryAlgorithm(Generator):
         return chords
             
 
-    # TODO evolve melody (adaptation measure - to choose)
-    # TODO insert rhythmical info
-    # TODO create accomp
-    pass
+    # TODO evolution methods: get initial population, crossover, mutation
+    # TODO fitness calculation (adaptation measures: chord validation, progression validation, repetition check)
+    # TODO runner
 
 
 g = Generator()
