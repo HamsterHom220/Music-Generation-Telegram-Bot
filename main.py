@@ -96,6 +96,13 @@ class Generator:
         self.mode = MODES[mode_name]
         self.lowest_note_offset = lowest_note_offset
 
+    def create_output(self,combined):
+        """
+        Produces: a MIDI file, such that if combined is True, then accompaniment is added to the initial file;
+        otherwise it is written to a separate empty file.
+        """
+        raise NotImplementedError("Each concrete Generator has its own create_output() implementation.")
+
 
 class Parser:
     def __init__(self, generator):
@@ -131,8 +138,6 @@ class Parser:
         key = music21.converter.parse(INPUT_FILENAME).analyze('key')
         self.generator.key = key.name
         self.generator.tonic = key.tonic.name
-
-    # TODO output file creation
 
 
 class EvolutionaryAlgorithm(Generator):
@@ -235,9 +240,19 @@ class EvolutionaryAlgorithm(Generator):
         pass
 
     def run(self):
+        final_population = []
         # TODO implement evolutionary algorithm runner
         #  (it will incorporate population generation, adaptation measurements, crossover, and mutations)
-        pass
+        return final_population
+
+    def create_output(self, combined):
+        """
+        Takes: final_population, self.lowest_octave_per_quarter_of_bar, args passed to constructors.
+        Produces: a MIDI file, such that if combined is True, then accompaniment is added to the initial file;
+        otherwise it is written to a separate empty file.
+        """
+        # TODO implement output file creation
+        return None
 
 
 g = Generator()
