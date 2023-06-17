@@ -23,7 +23,7 @@ INPUT_FILE = MidiFile(INPUT_FILENAME)
 
 # Pairs "mode:scale" (scale - interval pattern to build a mode from a tonic)
 # A mode in music theory is determined by the tonic note and the scale used
-MODE = {
+MODES = {
     "IONIAN": [2, 2, 1, 2, 2, 2, 1],  # natural major
     "DORIAN": [2, 1, 2, 2, 2, 1, 2],
     "PHRYGIAN": [1, 2, 2, 2, 1, 2, 2],
@@ -86,9 +86,9 @@ class Generator:
     tonic = None  # base note of a mode
 
     # lowest_note_offset: choose even lowest note offset for modes 1,2,4,5,6, and odd for 3,7
-    def __init__(self, accomp_volume=30, mode="IONIAN", lowest_note_offset=-4):
+    def __init__(self, accomp_volume=30, mode_name="IONIAN", lowest_note_offset=-4):
         self.accomp_volume = accomp_volume
-        self.mode = mode
+        self.mode = MODES[mode_name]
         self.lowest_note_offset = lowest_note_offset
 
 
@@ -130,7 +130,27 @@ class Parser:
 
 
 class EvolutionaryAlgorithm(Generator):
-    # TODO generate chord sequence
+    def generate_chords(self):
+        chords = []
+        tonic_num = NOTE_TO_NUMBER[self.tonic]
+        chord_types = CHORD_SEQ_MINOR
+        if self.key.split(" ")[-1]=="major":
+            chord_types = CHORD_SEQ_MAJOR
+            
+        i = 0
+        for chord_type in chord_types:
+            chord_name = NUMBER_TO_NOTE[tonic_num]
+            if chord_type=="DIMINISHED":
+                chord_name += "dim"
+            elif chord_type=="MINOR":
+                chord_name += "m"
+            chords.append(Chord(chord_name))
+            
+            tonic_num = (tonic_num + self.mode[i])%12
+            i += 1
+        return chords
+            
+
     # TODO evolve melody (adaptation measure - to choose)
     # TODO insert rhythmical info
     # TODO create accomp
