@@ -21,8 +21,9 @@ from time import time
 INPUT_FILE = "input.mid"
 OUTPUT_FILE = "output - "
 
-# MODES (interval patterns)
-MODES = {
+# Pairs "mode:scale" (scale - interval pattern to build a mode from a tonic)
+# A mode in music theory is determined by the tonic note and the scale used
+MODE = {
     "IONIAN" : [2, 2, 1, 2, 2, 2, 1], # natural major
     "DORIAN" : [2, 1, 2, 2, 2, 1, 2],
     "PHRYGIAN" : [1, 2, 2, 2, 1, 2, 2],
@@ -75,16 +76,39 @@ NOTE_TO_NUMBER = {
 }
 
 
-class Parser:
-    #TODO input file parsing
-    #TODO output file creation
-    pass
-
 class Generator:
-    # PARAMETERS
-    accomp_volume = 30 # default value chosen under the assumption of taking input with volume 50
-    mode = "IONIAN"
-    lowest_note_offset = -4 # choose even for modes 1,2,4,5,6, and odd for 3,7
+    #inp = MidiFile()
+    # data to be extracted from input
+    lowest_octave_per_quarter_of_bar = []
+    note_duration = []
+    notes = []
+    chords = []
+    key = None # features a tonic note and its corresponding chords
+    tonic = None # base note of a mode
+
+    # lowest_note_offset: choose even lowest note offset for modes 1,2,4,5,6, and odd for 3,7
+    def __init__(self,inp,accomp_volume=30,mode="IONIAN",lowest_note_offset=-4,lowest_octave=7):
+        self.inp = inp
+        self.accomp_volume = accomp_volume
+        self.mode = mode
+        self.lowest_note_offset = lowest_note_offset
+        self.lowest_octave = lowest_octave
+
+class Parser:
+    def parse(self, generator):
+        total_duration = 0
+        for track in generator.inp.tracks:
+            for token in track:
+                if token.time != 0 and token.type == "note_on":
+                    generator.notes.append(-1)
+                if token.type == "note_off":
+                    generator.notes.append(token.note%12)
+                if token.type=="note_off" or (token.type=="note_on" and token.time != 0):
+                    ...
+    # TODO finish input file parsing
+
+    # TODO output file creation
+    pass
 
 class EvolutionaryAlgorithm(Generator):
     #TODO generate chord sequence
