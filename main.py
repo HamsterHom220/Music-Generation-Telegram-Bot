@@ -17,20 +17,18 @@ from pychord import Chord
 from time import time
 
 # MIDI note values: 0,1,...,127
-
-INPUT_FILE = "input.mid"
-OUTPUT_FILE = "output - "
+INPUT_FILE = MidiFile("input.mid")
 
 # Pairs "mode:scale" (scale - interval pattern to build a mode from a tonic)
 # A mode in music theory is determined by the tonic note and the scale used
 MODE = {
-    "IONIAN" : [2, 2, 1, 2, 2, 2, 1], # natural major
-    "DORIAN" : [2, 1, 2, 2, 2, 1, 2],
-    "PHRYGIAN" : [1, 2, 2, 2, 1, 2, 2],
-    "LYDIAN" : [2, 2, 2, 1, 2, 2, 1],
-    "MIXOLYDIAN" : [2, 2, 1, 2, 2, 1, 2],
-    "AEOLIAN" : [2, 1, 2, 2, 1, 2, 2], # natural minor
-    "LOCRIAN" : [1, 2, 2, 1, 2, 2, 2]
+    "IONIAN": [2, 2, 1, 2, 2, 2, 1],  # natural major
+    "DORIAN": [2, 1, 2, 2, 2, 1, 2],
+    "PHRYGIAN": [1, 2, 2, 2, 1, 2, 2],
+    "LYDIAN": [2, 2, 2, 1, 2, 2, 1],
+    "MIXOLYDIAN": [2, 2, 1, 2, 2, 1, 2],
+    "AEOLIAN": [2, 1, 2, 2, 1, 2, 2],  # natural minor
+    "LOCRIAN": [1, 2, 2, 1, 2, 2, 2]
 }
 
 # Number of ticks representing note and quarter of note in MIDI file
@@ -75,44 +73,71 @@ NOTE_TO_NUMBER = {
     "B": 11, "C-": 11, "Cb": 11
 }
 
+'''Parent class for all generator algorithms.'''
+
 
 class Generator:
-    #inp = MidiFile()
     # data to be extracted from input
+    lowest_octave = 7
     lowest_octave_per_quarter_of_bar = []
     note_duration = []
     notes = []
     chords = []
-    key = None # features a tonic note and its corresponding chords
-    tonic = None # base note of a mode
+    key = None  # features a tonic note and its corresponding chords
+    tonic = None  # base note of a mode
 
     # lowest_note_offset: choose even lowest note offset for modes 1,2,4,5,6, and odd for 3,7
-    def __init__(self,inp,accomp_volume=30,mode="IONIAN",lowest_note_offset=-4,lowest_octave=7):
-        self.inp = inp
+    def __init__(self, accomp_volume=30, mode="IONIAN", lowest_note_offset=-4):
         self.accomp_volume = accomp_volume
         self.mode = mode
         self.lowest_note_offset = lowest_note_offset
-        self.lowest_octave = lowest_octave
+
 
 class Parser:
-    def parse(self, generator):
+    def __init__(self, generator):
+        # The recipient of processed data
+        self.generator = generator
+
+    def parse(self):
         total_duration = 0
-        for track in generator.inp.tracks:
+        for track in INPUT_FILE.tracks:
             for token in track:
-                if token.time != 0 and token.type == "note_on":
-                    generator.notes.append(-1)
-                if token.type == "note_off":
-                    generator.notes.append(token.note%12)
-                if token.type=="note_off" or (token.type=="note_on" and token.time != 0):
-                    ...
+                # token.time is the time that elapsed since the previous token's time value
+                # note_on with time=0 is equivalent to note_off
+                print(token)
+                if not token.is_meta:
+                    if token.type=="note_off" or (token.type=="note_on" and token.time == 0):
+                        self.generator.notes.append(token.note%12)
+                        self.generator.notes_duration.append(token.time)
+                        total_duration += token.time
+
+                        octave = (token.note // 12) - 1
+                        if octave < self.generator.lowest_octave:
+                            self.generator.lowest_octave = octave
+
+                        if total_duration >= TICKS_PER_QUARTER_OF_BAR:
+                            for i in range(total_duration // TICKS_PER_QUARTER_OF_BAR):
+                                self.generator.lowest_octave_per_quarter_of_bar.append(self.generator.lowest_octave)
+                            total_duration = total_duration % TICKS_PER_QUARTER_OF_BAR
+                            self.generator.lowest_octave = 7
+                    #elif token.type == "note_on":
+                    #    pass
+
+
     # TODO finish input file parsing
 
     # TODO output file creation
     pass
 
+
 class EvolutionaryAlgorithm(Generator):
-    #TODO generate chord sequence
-    #TODO evolve melody (adaptation measure - to choose)
-    #TODO insert rhythmical info
-    #TODO create accomp
+    # TODO generate chord sequence
+    # TODO evolve melody (adaptation measure - to choose)
+    # TODO insert rhythmical info
+    # TODO create accomp
     pass
+
+
+g = Generator()
+p = Parser(g)
+p.parse()
