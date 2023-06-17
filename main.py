@@ -16,8 +16,10 @@ from mido import Message, MidiFile, MidiTrack
 from pychord import Chord
 from time import time
 
+INPUT_FILENAME = "input.mid"
+
 # MIDI note values: 0,1,...,127
-INPUT_FILE = MidiFile("input.mid")
+INPUT_FILE = MidiFile(INPUT_FILENAME)
 
 # Pairs "mode:scale" (scale - interval pattern to build a mode from a tonic)
 # A mode in music theory is determined by the tonic note and the scale used
@@ -74,15 +76,12 @@ NOTE_TO_NUMBER = {
 }
 
 '''Parent class for all generator algorithms.'''
-
-
 class Generator:
     # data to be extracted from input
+    notes = []
+    durations = []
     lowest_octave = 7
     lowest_octave_per_quarter_of_bar = []
-    note_duration = []
-    notes = []
-    chords = []
     key = None  # features a tonic note and its corresponding chords
     tonic = None  # base note of a mode
 
@@ -98,17 +97,16 @@ class Parser:
         # The recipient of processed data
         self.generator = generator
 
-    def parse(self):
+    def extract_notes(self):
         total_duration = 0
         for track in INPUT_FILE.tracks:
             for token in track:
                 # token.time is the time that elapsed since the previous token's time value
                 # note_on with time=0 is equivalent to note_off
-                print(token)
                 if not token.is_meta:
                     if token.type=="note_off" or (token.type=="note_on" and token.time == 0):
                         self.generator.notes.append(token.note%12)
-                        self.generator.notes_duration.append(token.time)
+                        self.generator.durations.append(token.time)
                         total_duration += token.time
 
                         octave = (token.note // 12) - 1
@@ -122,9 +120,10 @@ class Parser:
                             self.generator.lowest_octave = 7
                     #elif token.type == "note_on":
                     #    pass
-
-
-    # TODO finish input file parsing
+    def identify_key(self):
+        key = music21.converter.parse(INPUT_FILENAME).analyze('key')
+        self.generator.key = key.name
+        self.generator.tonic = key.tonic.name
 
     # TODO output file creation
     pass
@@ -140,4 +139,6 @@ class EvolutionaryAlgorithm(Generator):
 
 g = Generator()
 p = Parser(g)
-p.parse()
+p.extract_notes()
+p.identify_key()
+print("key:",g.key,", tonic:",g.tonic)
