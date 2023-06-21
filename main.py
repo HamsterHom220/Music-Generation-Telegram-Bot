@@ -175,11 +175,37 @@ class EvolutionaryAlgorithm(Generator):
     def compute_adaptation(self, chromosome):
         """
         Measures and returns the adaptation of a given chromosome according to the following criteria:
-        chord validation, progression validation, repetition check. For each of them there is a method
+        octaves check, progression validation, repetition check. For each of them there is a method
         that returns a certain score for each of the given chromosomes. These scores define the adaptation value.
         """
-        # TODO implement measurement
-        return 0
+        note_ind = 0
+        chord_ind = 0
+        adaptation = 0
+        cur_duration = 0
+        while chord_ind < 4*self.bars_count + self.residue:
+            # octave criterion
+            cur_duration += self.durations[note_ind]
+            if cur_duration>=TICKS_PER_QUARTER_OF_BAR:
+                for _ in range(cur_duration//TICKS_PER_QUARTER_OF_BAR):
+                    adaptation += self.check_for_octaves(chromosome,note_ind,chord_ind)
+                    chord_ind += 1
+                cur_duration %= TICKS_PER_QUARTER_OF_BAR
+            else:
+                adaptation += self.check_for_octaves(chromosome,note_ind,chord_ind)
+            note_ind += 1
+
+            # repetition criterion
+            if self.residue > 0:
+                if chord_ind >= 4*self.bars_count+self.residue-1:
+                    adaptation += self.check_for_repetitions(chromosome)
+            elif chord_ind >= 4*self.bars_count:
+                adaptation += self.check_for_repetitions(chromosome)
+
+            # progression criterion
+            if note_ind % self.bars_count == 0 and note_ind <= len(chromosome):
+                adaptation += self.validate_progression(chromosome)
+
+        return adaptation
 
     def generate_population(self):
         """
