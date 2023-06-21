@@ -75,8 +75,6 @@ NOTE_TO_NUMBER = {
 }
 
 '''Parent class for all generator algorithms.'''
-
-
 class Generator:
     # data to be extracted from input
     notes = []
@@ -141,14 +139,18 @@ class Parser:
 
 
 class EvolutionaryAlgorithm(Generator):
-    def __init__(self, population_size=200, generations=500, mutation_probability_percent=10):
+    def __init__(self, population_size=200, generations=500, mutation_probability_percent=10,
+                 octave_weight=1, progression_weight=3, repetition_weight=1):
         super().__init__()
         self.population_size = population_size
         self.generations = generations
         self.mutation_probability_percent = mutation_probability_percent
+        self.octave_weight = octave_weight
+        self.progression_weight = progression_weight
+        self.repetition_weight = repetition_weight
 
     def generate_chords(self):
-        """Generates and returns chords based on the data collected by parser according to the music theory principles."""
+        """Generates and returns chord sequences in form of lists with strings based on the data collected by parser according to the music theory principles."""
         chords = []
         tonic_num = NOTE_TO_NUMBER[self.tonic]
         chord_types = CHORD_SEQ_MINOR
@@ -196,8 +198,19 @@ class EvolutionaryAlgorithm(Generator):
             population.append((adaptation,chromosome))
         return population
 
-    def validate_chord(self):
-        # TODO implement measurement
+    # chromosome is a list of chords represented by strings
+    def check_for_octaves(self, chromosome, note_ind, chord_ind):
+        '''
+        This criterion is based on the fact that simultaneously played
+        notes on the distance that is a multiple of octave between them
+        always sound good.
+        This function is a special case of mapping the interval between notes
+        to some adaptation value.
+        Maybe in the future this method will be generalized.
+        '''
+        chord_notes = Chord(chromosome[chord_ind].chord).components()
+        if NUMBER_TO_NOTE[self.notes[note_ind]] in chord_notes:
+            return self.octave_weight
         return 0
 
     def validate_progression(self):
