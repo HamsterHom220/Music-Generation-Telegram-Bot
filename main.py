@@ -142,7 +142,7 @@ class Parser:
 
 class EvolutionaryAlgorithm(Generator):
     def __init__(self, population_size=200, generations=500, mutation_probability_percent=10,
-                 octave_weight=1, progression_weight=3, repetition_weight=1):
+                 octave_weight=1, progression_weight=3, repetition_weight=1, repeats_search_radius=2):
         super().__init__()
         self.population_size = population_size
         self.generations = generations
@@ -151,6 +151,7 @@ class EvolutionaryAlgorithm(Generator):
         self.progression_weight = progression_weight
         self.repetition_weight = repetition_weight
         self.init_chord_seq = []
+        self.repeats_search_radius = repeats_search_radius
 
     def generate_chords(self):
         """Generates and returns chord sequences in form of lists with strings based on the data collected by parser according to the music theory principles."""
@@ -231,9 +232,22 @@ class EvolutionaryAlgorithm(Generator):
                 return self.progression_weight
         return 0
 
-    def check_repetitions(self):
-        # TODO implement measurement
-        return 0
+    def check_for_repetitions(self,chromosome):
+        '''
+        This criterion is based on the fact that close pattern repetitions should be avoided.
+        In the future, the return formula might be adjusted.
+        '''
+        chromosome_parts = []
+        for i in range(4):
+            chromosome_parts.append(chromosome[4*i:4*i+4])
+        repeats_count = 0
+        for i in range(4):
+            r = i+self.repeats_search_radius
+            if r>4: r=4
+            for j in range(i+1,r):
+                if chromosome_parts[i]==chromosome_parts[j]:
+                    repeats_count += 1
+        return -self.repetition_weight * repeats_count / len(chromosome)
 
     def crossover(self, chromosome1, chromosome2):
         """
