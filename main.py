@@ -303,7 +303,7 @@ class EvolutionaryAlgorithm(Generator):
             sorted_population[j][1] = child
             return sorted_population # not guaranteed to be sorted anymore
 
-    def mutation(self):
+    def mutation(self, population):
         """
         This method will be applied to the whole population. As a result, in every chromosome,
         with the probability passed to the EvolutionaryAlgorithm constructor,
@@ -315,8 +315,16 @@ class EvolutionaryAlgorithm(Generator):
         evolution progresses."
         [Taken from Intro to Evolutionary Computing by A.E. Eiben , J.E. Smith]
         """
-        # TODO implement mutation
-        pass
+        for i in range(self.population_size):
+            if randint(1,100)<self.mutation_probability_percent:
+                chromosome_len = len(population[i][1])
+                i1 = randint(0,chromosome_len-1)
+                i2 = randint(0,chromosome_len-1)
+                while i2==i1:
+                    i2 = randint(0,chromosome_len-1)
+                population[i][1][i1],population[i][1][i2] = population[i][1][i2],population[i][1][i1]
+        return population
+
 
     def run(self):
         final_population = []
