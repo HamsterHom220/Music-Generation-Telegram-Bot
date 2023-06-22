@@ -74,22 +74,9 @@ NOTE_TO_NUMBER = {
     "B": 11, "C-": 11, "Cb": 11
 }
 
-'''Parent class for all generator algorithms.'''
-
 
 class Generator:
-    # data to be extracted from input
-    notes = []
-    durations = []
-    total_duration = 0
-    bars_count = 0
-    residue = 0  # the number of accompaniment chords (notes per track) that need to be generated for the last bar
-    # if the input ends not exactly at the end of the last bar
-    lowest_octave = 7
-    lowest_octave_per_quarter_of_bar = []
-    key = None  # features a tonic note and its corresponding chords
-    tonic = None  # base note of a mode
-
+    '''Parent class for all generator algorithms.'''
     # lowest_note_offset: choose even lowest note offset for modes 1,2,4,5,6, and odd for 3,7
     def __init__(self, accomp_volume=30, mode_name="IONIAN", lowest_note_offset=-4, combined_output=True,
                  out_filename="output"):
@@ -98,6 +85,18 @@ class Generator:
         self.lowest_note_offset = lowest_note_offset
         self.combined_output = combined_output
         self.out_filename = out_filename
+
+        # data to be extracted from input
+        self.notes = []
+        self.durations = []
+        self.total_duration = 0
+        self.bars_count = 0
+        self.residue = 0  # the number of accompaniment chords (notes per track) that need to be generated for the last bar
+        # if the input ends not exactly at the end of the last bar
+        self.lowest_octave = 7
+        self.lowest_octave_per_quarter_of_bar = []
+        self.key = None  # features a tonic note and its corresponding chords
+        self.tonic = None  # base note of a mode
 
     def create_output(self):
         """
@@ -113,24 +112,26 @@ class Parser:
         self.generator = generator
 
     def extract_notes(self):
+        cur_duration = 0
         for track in INPUT_FILE.tracks:
             for token in track:
                 # token.time is the time that elapsed since the previous token's time value
                 # note_on with time=0 is equivalent to note_off
                 if not token.is_meta:
-                    if token.type == "note_off" or (token.type == "note_on" and token.time == 0):
+                    if token.type == "note_off" or (token.type == "note_on" and token.time != 0):
                         self.generator.notes.append(token.note % 12)
                         self.generator.durations.append(token.time)
                         self.generator.total_duration += token.time
+                        cur_duration += token.time
 
                         octave = (token.note // 12) - 1
                         if octave < self.generator.lowest_octave:
                             self.generator.lowest_octave = octave
 
-                        if self.generator.total_duration >= TICKS_PER_QUARTER_OF_BAR:
-                            for i in range(self.generator.total_duration // TICKS_PER_QUARTER_OF_BAR):
+                        if cur_duration >= TICKS_PER_QUARTER_OF_BAR:
+                            for i in range(cur_duration // TICKS_PER_QUARTER_OF_BAR):
                                 self.generator.lowest_octave_per_quarter_of_bar.append(self.generator.lowest_octave)
-                            self.generator.total_duration = self.generator.total_duration % TICKS_PER_QUARTER_OF_BAR
+                            cur_duration %= TICKS_PER_QUARTER_OF_BAR
                             self.generator.lowest_octave = 7
                     # elif token.type == "note_on":
                     #    pass
@@ -182,6 +183,8 @@ class EvolutionaryAlgorithm(Generator):
             tonic_num = (tonic_num + self.mode[i]) % 12
             i += 1
 
+        print("Initial chords built.")
+
     def compute_adaptation(self, chromosome: list[str]):
         """
         Measures and returns the adaptation of a given chromosome according to the following criteria:
@@ -192,6 +195,7 @@ class EvolutionaryAlgorithm(Generator):
         chord_ind = 0
         adaptation = 0
         cur_duration = 0
+        print("Computing adaptation for",chromosome,end="...")
         while chord_ind < 4 * self.bars_count + self.residue:
             # octave criterion
             cur_duration += self.durations[note_ind]
@@ -214,7 +218,7 @@ class EvolutionaryAlgorithm(Generator):
             # progression criterion
             if note_ind % self.bars_count == 0 and note_ind <= len(chromosome):
                 adaptation += self.validate_progression(chromosome)
-
+        print(" Result:",adaptation)
         return adaptation
 
     def generate_population(self):
@@ -226,14 +230,17 @@ class EvolutionaryAlgorithm(Generator):
         Basically, a chromosome is a chord sequence.
         """
         self.build_init_chords()
+        print("Generating population...")
         population = []
         for i in range(self.population_size):
             chromosome = []
             for j in range(4 * self.bars_count + self.residue):
                 chromosome.append(self.init_chord_seq[randint(0, 6)])
+            print("     Generated a chromosome:",chromosome)
 
             adaptation = self.compute_adaptation(chromosome)
             population.append(PopulationItem(adaptation, chromosome))
+        print("Population generated.")
         return population
 
     # chromosome is a list of chords represented by strings
@@ -246,9 +253,12 @@ class EvolutionaryAlgorithm(Generator):
         to some adaptation value.
         Maybe in the future this method will be generalized.
         '''
+        print("Checking",chromosome,"for octaves at note:",note_ind,", chord:",chord_ind,end="... ")
         chord_notes = Chord(chromosome[chord_ind].chord).components()
         if NUMBER_TO_NOTE[self.notes[note_ind]] in chord_notes:
+            print("Result: found.")
             return self.octave_weight
+        print("Result: not found.")
         return 0
 
     def validate_progression(self, chromosome: list[str]):
@@ -259,6 +269,7 @@ class EvolutionaryAlgorithm(Generator):
         In future this method can be improved by adding more progression presets and assigning
         different weights to them.
         '''
+        print("Validating progression for",chromosome,end="... ")
         for offset_list in PROGRESSIONS:
             valid = True
             for i in range(len(chromosome)):
@@ -266,7 +277,9 @@ class EvolutionaryAlgorithm(Generator):
                     valid = False
                     break
             if valid:
+                print("Result: valid.")
                 return self.progression_weight
+        print("Result: invalid.")
         return 0
 
     def check_for_repetitions(self, chromosome: list[str]):
@@ -274,6 +287,7 @@ class EvolutionaryAlgorithm(Generator):
         This criterion is based on the fact that close pattern repetitions should be avoided.
         In the future, the return formula might be adjusted.
         '''
+        print("Checking",chromosome,"for repetitions... ",end="")
         chromosome_parts = []
         for i in range(4):
             chromosome_parts.append(chromosome[4 * i:4 * i + 4])
@@ -284,6 +298,7 @@ class EvolutionaryAlgorithm(Generator):
             for j in range(i + 1, r):
                 if chromosome_parts[i] == chromosome_parts[j]:
                     repeats_count += 1
+        print("Result:",repeats_count)
         return -self.repetition_weight * repeats_count / len(chromosome)
 
     def crossover(self, sorted_population: list[PopulationItem]):
@@ -299,6 +314,7 @@ class EvolutionaryAlgorithm(Generator):
         an element from the same position of one of its parents. The parent to share an element
         is chosen with 50/50 chance.
         """
+        print("Performing crossover...")
         for j in range(self.population_size // 2):
             parent1 = sorted_population[randint(self.population_size // 2, self.population_size - 1)].chromosome
             parent2 = sorted_population[randint(self.population_size // 2, self.population_size - 1)].chromosome
@@ -312,7 +328,8 @@ class EvolutionaryAlgorithm(Generator):
                 else:
                     child.append(parent2[i])
             sorted_population[j].chromosome = child
-            return sorted_population  # not guaranteed to be sorted anymore
+        print("Crossover completed.")
+        return sorted_population  # not guaranteed to be sorted anymore
 
     def mutation(self, population: list[PopulationItem]):
         """
@@ -326,6 +343,7 @@ class EvolutionaryAlgorithm(Generator):
         evolution progresses."
         [Taken from Intro to Evolutionary Computing by A.E. Eiben , J.E. Smith]
         """
+        print("Performing mutation...")
         for i in range(self.population_size):
             if randint(1, 100) < self.mutation_probability_percent:
                 chromosome_len = len(population[i].chromosome)
@@ -334,6 +352,7 @@ class EvolutionaryAlgorithm(Generator):
                 while i2 == i1:
                     i2 = randint(0, chromosome_len - 1)
                 population[i].chromosome[i1], population[i].chromosome[i2] = population[i].chromosome[i2], population[i].chromosome[i1]
+        print("Mutation completed.")
         return population
 
     def generate_accomp(self):
@@ -381,5 +400,5 @@ g = EvolutionaryAlgorithm()
 p = Parser(g)
 p.extract_notes()
 p.identify_key()
-print("key:", g.key, ", tonic:", g.tonic)
-g.create_output()
+print("key:", g.key, ", tonic:", g.tonic, ", bars_count:", g.bars_count, ", residue:",g.residue)
+#g.create_output()
