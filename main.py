@@ -195,7 +195,7 @@ class EvolutionaryAlgorithm(Generator):
         chord_ind = 0
         adaptation = 0
         cur_duration = 0
-        print("Computing adaptation for",chromosome,end="...")
+        #print("Computing adaptation for",chromosome,end="...")
         while chord_ind < 4 * self.bars_count + self.residue:
             # octave criterion
             cur_duration += self.durations[note_ind]
@@ -212,13 +212,15 @@ class EvolutionaryAlgorithm(Generator):
             if self.residue > 0:
                 if chord_ind >= 4 * self.bars_count + self.residue - 1:
                     adaptation += self.check_for_repetitions(chromosome)
+                    return adaptation
             elif chord_ind >= 4 * self.bars_count:
                 adaptation += self.check_for_repetitions(chromosome)
+                return adaptation
 
             # progression criterion
             if note_ind % self.bars_count == 0 and note_ind <= len(chromosome):
                 adaptation += self.validate_progression(chromosome)
-        print(" Result:",adaptation)
+        #print(" Result:",adaptation)
         return adaptation
 
     def generate_population(self):
@@ -236,7 +238,6 @@ class EvolutionaryAlgorithm(Generator):
             chromosome = []
             for j in range(4 * self.bars_count + self.residue):
                 chromosome.append(self.init_chord_seq[randint(0, 6)])
-            print("     Generated a chromosome:",chromosome)
 
             adaptation = self.compute_adaptation(chromosome)
             population.append(PopulationItem(adaptation, chromosome))
@@ -253,12 +254,12 @@ class EvolutionaryAlgorithm(Generator):
         to some adaptation value.
         Maybe in the future this method will be generalized.
         '''
-        print("Checking",chromosome,"for octaves at note:",note_ind,", chord:",chord_ind,end="... ")
+        #print("Checking",chromosome,"for octaves at note:",note_ind,", chord:",chord_ind,end="... ")
         chord_notes = Chord(chromosome[chord_ind].chord).components()
         if NUMBER_TO_NOTE[self.notes[note_ind]] in chord_notes:
-            print("Result: found.")
+            #print("Result: found.")
             return self.octave_weight
-        print("Result: not found.")
+        #print("Result: not found.")
         return 0
 
     def validate_progression(self, chromosome: list[str]):
@@ -269,7 +270,7 @@ class EvolutionaryAlgorithm(Generator):
         In future this method can be improved by adding more progression presets and assigning
         different weights to them.
         '''
-        print("Validating progression for",chromosome,end="... ")
+        #print("Validating progression for",chromosome,end="... ")
         for offset_list in PROGRESSIONS:
             valid = True
             for i in range(len(chromosome)):
@@ -277,9 +278,9 @@ class EvolutionaryAlgorithm(Generator):
                     valid = False
                     break
             if valid:
-                print("Result: valid.")
+                #print("Result: valid.")
                 return self.progression_weight
-        print("Result: invalid.")
+        #print("Result: invalid.")
         return 0
 
     def check_for_repetitions(self, chromosome: list[str]):
@@ -287,7 +288,7 @@ class EvolutionaryAlgorithm(Generator):
         This criterion is based on the fact that close pattern repetitions should be avoided.
         In the future, the return formula might be adjusted.
         '''
-        print("Checking",chromosome,"for repetitions... ",end="")
+        #print("Checking",chromosome,"for repetitions... ",end="")
         chromosome_parts = []
         for i in range(4):
             chromosome_parts.append(chromosome[4 * i:4 * i + 4])
@@ -298,7 +299,7 @@ class EvolutionaryAlgorithm(Generator):
             for j in range(i + 1, r):
                 if chromosome_parts[i] == chromosome_parts[j]:
                     repeats_count += 1
-        print("Result:",repeats_count)
+        #print("Result:",repeats_count)
         return -self.repetition_weight * repeats_count / len(chromosome)
 
     def crossover(self, sorted_population: list[PopulationItem]):
@@ -314,7 +315,7 @@ class EvolutionaryAlgorithm(Generator):
         an element from the same position of one of its parents. The parent to share an element
         is chosen with 50/50 chance.
         """
-        print("Performing crossover...")
+        #print("Performing crossover...")
         for j in range(self.population_size // 2):
             parent1 = sorted_population[randint(self.population_size // 2, self.population_size - 1)].chromosome
             parent2 = sorted_population[randint(self.population_size // 2, self.population_size - 1)].chromosome
@@ -328,7 +329,7 @@ class EvolutionaryAlgorithm(Generator):
                 else:
                     child.append(parent2[i])
             sorted_population[j].chromosome = child
-        print("Crossover completed.")
+        #print("Crossover completed.")
         return sorted_population  # not guaranteed to be sorted anymore
 
     def mutation(self, population: list[PopulationItem]):
@@ -343,7 +344,7 @@ class EvolutionaryAlgorithm(Generator):
         evolution progresses."
         [Taken from Intro to Evolutionary Computing by A.E. Eiben , J.E. Smith]
         """
-        print("Performing mutation...")
+        #print("Performing mutation...")
         for i in range(self.population_size):
             if randint(1, 100) < self.mutation_probability_percent:
                 chromosome_len = len(population[i].chromosome)
@@ -352,7 +353,7 @@ class EvolutionaryAlgorithm(Generator):
                 while i2 == i1:
                     i2 = randint(0, chromosome_len - 1)
                 population[i].chromosome[i1], population[i].chromosome[i2] = population[i].chromosome[i2], population[i].chromosome[i1]
-        print("Mutation completed.")
+        #print("Mutation completed.")
         return population
 
     def generate_accomp(self):
@@ -365,7 +366,7 @@ class EvolutionaryAlgorithm(Generator):
             final_population = self.mutation(self.crossover(final_population))
             for item in final_population:
                 item.adaptation = self.compute_adaptation(item.chromosome)
-            final_population = sorted(self.generate_population(), key=lambda x: x.adaptation)
+            final_population = sorted(final_population, key=lambda x: x.adaptation)
         return final_population
 
     def create_output(self):
@@ -401,4 +402,4 @@ p = Parser(g)
 p.extract_notes()
 p.identify_key()
 print("key:", g.key, ", tonic:", g.tonic, ", bars_count:", g.bars_count, ", residue:",g.residue)
-#g.create_output()
+g.create_output()
