@@ -15,7 +15,7 @@ from mido import Message, MetaMessage, MidiFile, MidiTrack
 from pychord import Chord
 from time import time
 
-INPUT_FILENAME = "input.mid"
+INPUT_FILENAME = "[first iter +4]output Am combined.mid"
 
 # MIDI note values: 0,1,...,127
 input_file = MidiFile(INPUT_FILENAME)
@@ -137,7 +137,9 @@ class Parser:
                     # elif token.type == "note_on":
                     #    pass
         self.generator.bars_count = self.generator.total_duration // TICKS_PER_BAR
+        print("Bars:",self.generator.bars_count)
         self.generator.residue = ceil(self.generator.total_duration % TICKS_PER_BAR / TICKS_PER_QUARTER_OF_BAR)
+        print("Residue:",self.generator.residue)
 
     def identify_key(self):
         key = music21.converter.parse(INPUT_FILENAME).analyze('key')
