@@ -115,11 +115,14 @@ class Parser:
     def extract_notes(self):
         cur_duration = 0
         for track in input_file.tracks:
+            prev_time = -1
             for token in track:
                 # token.time is the time that elapsed since the previous token's time value
                 # note_on with time=0 is equivalent to note_off
                 if not token.is_meta:
-                    if token.type == "note_off" or (token.type == "note_on" and token.time != 0):
+                    # if at some moment there are multiple notes played simultaneously,
+                    # consider only such one of them that appears the most early in the input file
+                    if (token.time!=prev_time) and (token.type == "note_off" or (token.type == "note_on" and token.time != 0)):
                         self.generator.notes.append(token.note % 12)
                         self.generator.durations.append(token.time)
                         self.generator.total_duration += token.time
@@ -134,11 +137,13 @@ class Parser:
                                 self.generator.lowest_octave_per_quarter_of_bar.append(self.generator.lowest_octave)
                             cur_duration %= TICKS_PER_QUARTER_OF_BAR
                             self.generator.lowest_octave = 7
+
+                        prev_time = token.time
                     # elif token.type == "note_on":
                     #    pass
         self.generator.bars_count = self.generator.total_duration // TICKS_PER_BAR
         print("Bars:",self.generator.bars_count)
-        self.generator.residue = ceil(self.generator.total_duration % TICKS_PER_BAR / TICKS_PER_QUARTER_OF_BAR)
+        self.generator.residue = self.generator.total_duration % TICKS_PER_BAR // TICKS_PER_QUARTER_OF_BAR
         print("Residue:",self.generator.residue)
 
     def identify_key(self):
