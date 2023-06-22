@@ -18,7 +18,7 @@ from time import time
 INPUT_FILENAME = "input.mid"
 
 # MIDI note values: 0,1,...,127
-INPUT_FILE = MidiFile(INPUT_FILENAME)
+input_file = MidiFile(INPUT_FILENAME)
 
 # Pairs "mode:scale" (scale - interval pattern to build a mode from a tonic)
 # A mode in music theory is determined by the tonic note and the scale used
@@ -78,9 +78,10 @@ NOTE_TO_NUMBER = {
 class Generator:
     '''Parent class for all generator algorithms.'''
     # lowest_note_offset: choose even lowest note offset for modes 1,2,4,5,6, and odd for 3,7
-    def __init__(self, accomp_volume=30, mode_name="IONIAN", lowest_note_offset=-4, combined_output=True,
+    # lowest_note_offset < 0: accomp will be lower than the input, otherwise higher
+    def __init__(self, accomp_velocity=30, mode_name="IONIAN", lowest_note_offset=-4, combined_output=True,
                  out_filename="output"):
-        self.accomp_volume = accomp_volume
+        self.accomp_velocity = accomp_velocity
         self.mode = MODES[mode_name]
         self.lowest_note_offset = lowest_note_offset
         self.combined_output = combined_output
@@ -113,7 +114,7 @@ class Parser:
 
     def extract_notes(self):
         cur_duration = 0
-        for track in INPUT_FILE.tracks:
+        for track in input_file.tracks:
             for token in track:
                 # token.time is the time that elapsed since the previous token's time value
                 # note_on with time=0 is equivalent to note_off
@@ -183,7 +184,7 @@ class EvolutionaryAlgorithm(Generator):
             tonic_num = (tonic_num + self.mode[i]) % 12
             i += 1
 
-        print("Initial chords built.")
+        #print("Initial chords built.")
 
     def compute_adaptation(self, chromosome: list[str]):
         """
@@ -232,7 +233,7 @@ class EvolutionaryAlgorithm(Generator):
         Basically, a chromosome is a chord sequence.
         """
         self.build_init_chords()
-        print("Generating population...")
+        #print("Generating population...")
         population = []
         for i in range(self.population_size):
             chromosome = []
@@ -241,7 +242,7 @@ class EvolutionaryAlgorithm(Generator):
 
             adaptation = self.compute_adaptation(chromosome)
             population.append(PopulationItem(adaptation, chromosome))
-        print("Population generated.")
+        #print("Population generated.")
         return population
 
     # chromosome is a list of chords represented by strings
@@ -375,31 +376,49 @@ class EvolutionaryAlgorithm(Generator):
         Produces: 2 MIDI files, such that "<filename> combined.mid" is the initial file + accompaniment;
         and "<filename> accomp.mid" is just the accompaniment written to an empty file.
         """
-        tracks = []
+        accomp_tracks = []
         accomp_file = MidiFile()
-        inp_metadata = INPUT_FILE.tracks[1][0]
+        inp_metadata = input_file.tracks[1][0]
         for i in range(3):
             track = MidiTrack()
             track.append(inp_metadata)
             track.append(MetaMessage("time_signature", numerator=4, denominator=4))
             track.append(MetaMessage("track_name", name="generated track " + str(i)))
             track.append(Message("program_change", program=0, time=0))
-            tracks.append(track)
+            accomp_tracks.append(track)
 
         print("Generating...")
         start = time()
-        temp = self.generate_accomp()
+        final_population = self.generate_accomp()
         end = time()
         print("Completed in", (end - start) / 60, "mins")
-        print(item.chromosome for item in temp)
-        # output_chord_seq = [Chord(item[1]) for item in temp]
-        # for i in range(len(output_chord_seq)):
-        #     chord_notes = output_chord_seq[i].components()
+        
+        # choosing the last chromosome as the result
+        output_chord_seq = final_population[-1].chromosome
+        for i in range(len(output_chord_seq)):
+            chord_notes = output_chord_seq[i].components()
+            for j in range(len(chord_notes)):
+                note = \
+                    36 + 12 * \
+                    (self.lowest_octave_per_quarter_of_bar[j]+self.lowest_note_offset) + \
+                    NOTE_TO_NUMBER[chord_notes[j]]
+                accomp_tracks[j].append(Message("note_on", note=note, velocity=self.accomp_velocity, time=0))
+                accomp_tracks[j].append(Message("note_off", note=note, velocity=self.accomp_velocity, time=TICKS_PER_QUARTER_OF_BAR))
+                
+        for i in range(3):
+            accomp_tracks[i].append(input_file.tracks[1][-1])
+            input_file.tracks.append(accomp_tracks[i])
+            accomp_file.tracks.append(accomp_tracks[i])
+
+        self.out_filename += " " + self.tonic
+        if "minor" in self.key:
+            self.out_filename += "m"
+        input_file.save(self.out_filename + " combined.mid")
+        accomp_file.save(self.out_filename + " accomp.mid")
 
 
 g = EvolutionaryAlgorithm()
 p = Parser(g)
 p.extract_notes()
 p.identify_key()
-print("key:", g.key, ", tonic:", g.tonic, ", bars_count:", g.bars_count, ", residue:",g.residue)
 g.create_output()
