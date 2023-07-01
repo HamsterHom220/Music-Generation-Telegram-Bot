@@ -8,4 +8,4 @@ meta:
 
 run:
  command: gunicorn --bind 0.0.0.0:5000 bot:bot
- containerPort: 5000
+ containerPort: 80
