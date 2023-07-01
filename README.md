@@ -1,5 +1,7 @@
 # Music-Generation-Telegram-Bot
-A bot for generating MIDI-accompaniments by using an evolutionary algorithm.
-Now the main generation algorithm is being implemented.
-In the near future the program will be integrated into a bot.
-Then, probably, other generation algorithms will be added.
+A bot for generating music by using different algorithms: https://t.me/music_generati0n_bot (@music_generati0n_bot).
+
+Now supports generating:
+      - MIDI-accompaniments via an evolutionary algorithm.
+
+At the moment, local deployment is being used since the project configuration for a cloud service is still in development.
