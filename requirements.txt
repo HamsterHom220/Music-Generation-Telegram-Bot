@@ -1,3 +1,4 @@
+python-telegram-bot
 music21
 mido
 pychord

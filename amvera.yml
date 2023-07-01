@@ -2,11 +2,11 @@ meta:
  environment: python
  toolchain:
    name: pip
+   version: 3.9
  build:
-   context: .
-   dockerfile: Dockerfile
-   requirementsPath: .
+   requirementsPath: requirements.txt
 
 run:
- command: gunicorn --bind 0.0.0.0:5000 bot:bot
- containerPort: 80
+  scriptName: bot.py
+  persistenceMount: /data
+  containerPort: 80
