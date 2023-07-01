@@ -5,6 +5,7 @@ meta:
  build:
    context: .
    dockerfile: Dockerfile
+   requirementsPath: .
 
 run:
  command: gunicorn --bind 0.0.0.0:5000 bot:bot
