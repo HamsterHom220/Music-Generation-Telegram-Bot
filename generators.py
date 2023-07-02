@@ -7,7 +7,7 @@ import music21
 from mido import Message, MetaMessage, MidiFile, MidiTrack
 from pychord import Chord
 
-INPUT_FILENAME = "input.mid"
+INPUT_FILENAME = "/app/input.mid"
 
 # MIDI note values: 0,1,...,127
 input_file = MidiFile(INPUT_FILENAME)
@@ -402,5 +402,5 @@ class EvolutionaryAlgorithm(Generator):
         self.output_info += self.tonic
         if "minor" in self.key:
             self.output_info += "m"
-        input_file.save("output-combined.mid")
-        accomp_file.save("output-accomp.mid")
+        input_file.save("/app/output-combined.mid")
+        accomp_file.save("/app/output-accomp.mid")
