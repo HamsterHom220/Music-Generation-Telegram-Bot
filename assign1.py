@@ -54,12 +54,14 @@ out_file = MidiFile()
 key = randint(0,11)
 mode = randint(0,6)
 octave = randint(-1,4)
-print(NUMBER_TO_NOTE[key],mode,octave)
 
 allowed_notes = [key]
 for interval in MODES[mode]:
     key += interval
     allowed_notes.append(key)
+dominant = allowed_notes[4]
+subdominant = allowed_notes[3]
+tonic = allowed_notes[0]
 
 subdivision = subdivide([[1] for _ in range(NUM_OF_BARS)])
 for bar in subdivision:
@@ -67,6 +69,11 @@ for bar in subdivision:
         note = allowed_notes[randint(0,6)] + 36 + 12*octave
         melody_track.append(Message("note_on", note=note, velocity=50, time=0))
         melody_track.append(Message("note_off", note=note, velocity=50, time=ceil(TICKS_PER_BAR/denominator)))
+
+melody_track.pop(-1)
+melody_track.pop(-1)
+melody_track.append(Message("note_on", note=dominant+ 36 + 12*octave, velocity=50, time=0))
+melody_track.append(Message("note_off", note=dominant+ 36 + 12*octave, velocity=50, time=ceil(TICKS_PER_BAR/denominator)))
 
 out_file.tracks.append(melody_track)
 out_file.save("output.mid")
