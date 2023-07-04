@@ -138,7 +138,7 @@ def chords_grammar(melody_bars, mode):
     return chords
 
 
-melody_bars, allowed_notes, mode, octave = melody_constrained()
+melody_bars, allowed_notes, mode, octave = melody_constrained(5)
 accomp = chords_grammar(melody_bars, mode)
 
 melody_track = [
@@ -157,8 +157,12 @@ for bar in melody_bars:
         melody_track.append(Message(note.state, note=note.type, velocity=note.velocity, time=note.timestamp))
 
 # accompaniment octave offset
-if octave <= 1:
+if octave <= 0:
     octave += 2
+elif octave == 1:
+    octave += 1
+elif octave == 2:
+    octave -= 1
 else:
     octave -= 2
 
