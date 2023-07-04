@@ -6,13 +6,13 @@ from math import ceil
 NUM_OF_BARS = 32
 TICKS_PER_BAR = 1920
 MODES = [
-    [2, 2, 1, 2, 2, 2, 1],  # IONIAN ~MAJ
-    [2, 1, 2, 2, 2, 1, 2],  # DORIAN ~min
-    [1, 2, 2, 2, 1, 2, 2],  # PHRYGIAN ~min
-    [2, 2, 2, 1, 2, 2, 1],  # LYDIAN ~maj
-    [2, 2, 1, 2, 2, 1, 2],  # MIXOLYDIAN ~maj
-    [2, 1, 2, 2, 1, 2, 2],  # AEOLIAN ~MIN
-    [1, 2, 2, 1, 2, 2, 2],  # LOCRIAN ~min
+    [2, 2, 1, 2, 2, 2, 1],  # 0 IONIAN ~MAJ
+    [2, 1, 2, 2, 2, 1, 2],  # 1 DORIAN ~min
+    [1, 2, 2, 2, 1, 2, 2],  # 2 PHRYGIAN ~min
+    [2, 2, 2, 1, 2, 2, 1],  # 3 LYDIAN ~maj
+    [2, 2, 1, 2, 2, 1, 2],  # 4 MIXOLYDIAN ~maj
+    [2, 1, 2, 2, 1, 2, 2],  # 5 AEOLIAN ~MIN
+    [1, 2, 2, 1, 2, 2, 2],  # 6 LOCRIAN ~min
 ]
 NUMBER_TO_NOTE = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 NOTE_TO_NUMBER = {
@@ -81,7 +81,7 @@ def subdivide(bars: list[list[int]]) -> list[list[int]]:
     return subdivide(bars)
 
 
-def melody_constrained():
+def melody_constrained(mode = randint(0, 6)):
     """
     Rule/constraint-based monophonic melody generator.
     :return:
@@ -90,7 +90,6 @@ def melody_constrained():
     melody_bars = []
 
     tonic = randint(0, 11)
-    mode = randint(0, 6)
     octave = randint(-1, 4)
 
     allowed_notes = [tonic]
