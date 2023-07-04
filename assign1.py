@@ -88,7 +88,7 @@ def melody_constrained():
 
     allowed_notes = [tonic]
     for interval in MODES[mode]:
-        tonic += interval
+        tonic = (tonic+interval)%12
         allowed_notes.append(tonic)
 
     subdivision = subdivide([[1] for _ in range(NUM_OF_BARS)])
@@ -124,15 +124,15 @@ def chords_grammar(melody_bars, allowed_notes, mode):
     chord_type_iter = 0
     cur_progression = PROGRESSIONS[randint(0, len(PROGRESSIONS) - 1)]
     for bar in melody_bars:
-        chord = NUMBER_TO_NOTE[bar[randint(0, len(bar) - 1)].type%12]
+        chord_name = NUMBER_TO_NOTE[bar[randint(0, len(bar) - 1)].type%12]
         if progression_iter + 1 >= len(cur_progression):
             cur_progression = PROGRESSIONS[randint(0, len(PROGRESSIONS) - 1)]
             
         if chord_types[chord_type_iter % len(chord_types)] == "DIMINISHED":
-            chord += "dim"
+            chord_name += "dim"
         elif chord_types[chord_type_iter % len(chord_types)] == "MINOR":
-            chord += "m"
-        chords.append(Chord(chord))
+            chord_name += "m"
+        chords.append(Chord(chord_name))
         progression_iter += 1
         chord_type_iter += 1
     return chords
@@ -160,12 +160,14 @@ if octave<=1:
     octave += 2
 else:
     octave -= 2
+print(allowed_notes)
 for chord in accomp:
     chord_notes = chord.components()
     for i in range(len(chord_notes)):
-        note = NOTE_TO_NUMBER[chord_notes[i]] + 36 + 12*octave
-        accomp_tracks[i].append(Message("note_on",note=note,velocity=30,time=0))
-        accomp_tracks[i].append(Message("note_off", note=note, velocity=30, time=TICKS_PER_BAR))
+        if NOTE_TO_NUMBER[chord_notes[i]] in allowed_notes:
+            note = NOTE_TO_NUMBER[chord_notes[i]] + 36 + 12*octave
+            accomp_tracks[i].append(Message("note_on",note=note,velocity=30,time=0))
+            accomp_tracks[i].append(Message("note_off", note=note, velocity=30, time=TICKS_PER_BAR))
 
 out_file = MidiFile()
 out_file.tracks.append(melody_track)
