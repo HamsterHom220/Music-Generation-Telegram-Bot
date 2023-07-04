@@ -1,5 +1,4 @@
-# Constraint-based monophonic generation
-from mido import Message, MetaMessage, MidiFile, MidiTrack
+from mido import Message, MetaMessage, MidiFile
 from pychord import Chord
 from random import randint, shuffle
 from math import ceil
@@ -30,7 +29,6 @@ NOTE_TO_NUMBER = {
     "B-": 10, "A#": 10, "Bb": 10,
     "B": 11, "C-": 11, "Cb": 11
 }
-
 PROGRESSIONS = [
     [1, 4, 5, 5],
     [1, 1, 4, 5],
@@ -53,8 +51,25 @@ CHORD_SEQ_MAJOR = ["MAJOR", "MINOR", "MINOR", "MAJOR", "MAJOR", "MINOR", "DIMINI
 CHORD_SEQ_MINOR = ["MINOR", "DIMINISHED", "MAJOR", "MINOR", "MINOR", "MAJOR", "MAJOR"]
 
 
-# args: [[1]..[1]] with len=num of bars
+class Note:
+    """
+    A class for temporary storage of MIDI message data in mutable form.
+    """
+
+    def __init__(self, type, timestamp, state, velocity=50):
+        self.type = type
+        self.timestamp = timestamp
+        self.velocity = velocity
+        self.state = state
+
+
 def subdivide(bars: list[list[int]]) -> list[list[int]]:
+    '''
+    Function for subdividing a whole note into a random sequence of notes >= 1/8.
+    Initial undivided notes sequence is represented as the array [[1]..[1]] with length==num of bars.
+    :param bars: list of ordered lists with note duration denominators for each bar
+    :return: bars: list of ordered lists with note duration denominators for each bar
+    '''
     if bars[0][0] == 8:
         return bars
     divide = randint(0, 1)
@@ -66,19 +81,11 @@ def subdivide(bars: list[list[int]]) -> list[list[int]]:
     return subdivide(bars)
 
 
-class Note:
-    def __init__(self, type, timestamp, state, velocity=50):
-        self.type = type
-        self.timestamp = timestamp
-        self.velocity = velocity
-        self.state = state
-
-
 def melody_constrained():
     """
-    rule/constraint-based generator
+    Rule/constraint-based monophonic melody generator.
     :return:
-    - monophonic melody represented as list of bars, i.e. lists of Notes; - list of notes in the key represented by ints; - the mode
+    - monophonic melody represented as list of bars, i.e. lists of Notes; - list of notes in the key represented by ints; - the mode and octave
     """
     melody_bars = []
 
@@ -88,7 +95,7 @@ def melody_constrained():
 
     allowed_notes = [tonic]
     for interval in MODES[mode]:
-        tonic = (tonic+interval)%12
+        tonic = (tonic + interval) % 12
         allowed_notes.append(tonic)
 
     subdivision = subdivide([[1] for _ in range(NUM_OF_BARS)])
@@ -98,22 +105,16 @@ def melody_constrained():
             note = allowed_notes[randint(0, 6)] + 36 + 12 * octave
             melody_bars[-1].append(Note(note, 0, "note_on"))
             melody_bars[-1].append(Note(note, ceil(TICKS_PER_BAR / denominator), "note_off"))
-            # melody_track.append(Message("note_on", note=note, velocity=50, time=0))
-            # melody_track.append(Message("note_off", note=note, velocity=50, time=ceil(TICKS_PER_BAR/denominator)))
 
-    # melody_track.pop(-1)
-    # melody_track.pop(-1)
-    # melody_track.append(Message("note_on", note=allowed_notes[4]+ 36 + 12*octave, velocity=50, time=0))
-    # melody_track.append(Message("note_off", note=allowed_notes[4]+ 36 + 12*octave, velocity=50, time=ceil(TICKS_PER_BAR/denominator)))
     melody_bars[-1][-1].type = tonic + 36 + 12 * octave
     return melody_bars, allowed_notes, mode, octave
 
 
-def chords_grammar(melody_bars, allowed_notes, mode):
+def chords_grammar(melody_bars, mode):
     """
-    formal grammar-based generator
-    :param - monophonic melody represented as list of bars, i.e. lists of Notes; - list of notes in the key represented by ints; - mode of the melody
-    :return:
+    Formal grammar-based chord accompaniment generator.
+    :param - monophonic melody represented as list of bars, i.e. lists of Notes; - mode of the melody
+    :return: list of Chords
     """
     chords = []
     if mode in [0, 3, 4]:
@@ -124,10 +125,10 @@ def chords_grammar(melody_bars, allowed_notes, mode):
     chord_type_iter = 0
     cur_progression = PROGRESSIONS[randint(0, len(PROGRESSIONS) - 1)]
     for bar in melody_bars:
-        chord_name = NUMBER_TO_NOTE[bar[randint(0, len(bar) - 1)].type%12]
+        chord_name = NUMBER_TO_NOTE[bar[randint(0, len(bar) - 1)].type % 12]
         if progression_iter + 1 >= len(cur_progression):
             cur_progression = PROGRESSIONS[randint(0, len(PROGRESSIONS) - 1)]
-            
+
         if chord_types[chord_type_iter % len(chord_types)] == "DIMINISHED":
             chord_name += "dim"
         elif chord_types[chord_type_iter % len(chord_types)] == "MINOR":
@@ -139,7 +140,7 @@ def chords_grammar(melody_bars, allowed_notes, mode):
 
 
 melody_bars, allowed_notes, mode, octave = melody_constrained()
-accomp = chords_grammar(melody_bars,allowed_notes,mode)
+accomp = chords_grammar(melody_bars, mode)
 
 melody_track = [
     MetaMessage("time_signature", numerator=4, denominator=4),
@@ -148,25 +149,26 @@ melody_track = [
 ]
 accomp_tracks = [[
     MetaMessage("time_signature", numerator=4, denominator=4),
-    MetaMessage("track_name", name="chord track "+str(i)),
+    MetaMessage("track_name", name="chord track " + str(i)),
     Message("program_change", program=0, time=0)
 ] for i in range(3)]
 
 for bar in melody_bars:
     for note in bar:
-        melody_track.append(Message(note.state,note=note.type,velocity=note.velocity,time=note.timestamp))
+        melody_track.append(Message(note.state, note=note.type, velocity=note.velocity, time=note.timestamp))
 
-if octave<=1:
+# accompaniment octave offset
+if octave <= 1:
     octave += 2
 else:
     octave -= 2
-print(allowed_notes)
+
 for chord in accomp:
     chord_notes = chord.components()
     for i in range(len(chord_notes)):
         if NOTE_TO_NUMBER[chord_notes[i]] in allowed_notes:
-            note = NOTE_TO_NUMBER[chord_notes[i]] + 36 + 12*octave
-            accomp_tracks[i].append(Message("note_on",note=note,velocity=30,time=0))
+            note = NOTE_TO_NUMBER[chord_notes[i]] + 36 + 12 * octave
+            accomp_tracks[i].append(Message("note_on", note=note, velocity=30, time=0))
             accomp_tracks[i].append(Message("note_off", note=note, velocity=30, time=TICKS_PER_BAR))
 
 out_file = MidiFile()
