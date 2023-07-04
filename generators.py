@@ -7,7 +7,7 @@ import music21
 from mido import Message, MetaMessage, MidiFile, MidiTrack
 from pychord import Chord
 
-INPUT_FILENAME = "/app/input.mid"
+INPUT_FILENAME = "input.mid"
 
 # MIDI note values: 0,1,...,127
 input_file = MidiFile(INPUT_FILENAME)
