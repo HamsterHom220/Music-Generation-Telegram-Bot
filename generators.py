@@ -402,5 +402,5 @@ class EvolutionaryAlgorithm(Generator):
         self.output_info += self.tonic
         if "minor" in self.key:
             self.output_info += "m"
-        input_file.save("/app/output-combined.mid")
-        accomp_file.save("/app/output-accomp.mid")
+        input_file.save("output-combined.mid")
+        accomp_file.save("output-accomp.mid")

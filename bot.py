@@ -107,7 +107,7 @@ def handle_input_file(msg):
     if msg.document.mime_type == 'audio/midi':
         file_info = bot.get_file(msg.document.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
-        with open('/app/input.mid', 'wb') as new_file:
+        with open('input.mid', 'wb') as new_file:
             new_file.write(downloaded_file)
         bot.send_message(msg.chat.id, 'Input file received successfully.')
     else:
@@ -147,7 +147,7 @@ def generate(msg):
         bot.send_message(msg.chat.id, generation_msg)
         for file in output:
             try:
-                bot.send_document(msg.chat.id, open("/app/"+file, 'rb'))
+                bot.send_document(msg.chat.id, open(file, 'rb'))
             except:
                 bot.send_message(msg.chat.id, "An error occurred during sending the result.")
 
