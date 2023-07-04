@@ -81,16 +81,14 @@ def subdivide(bars: list[list[int]]) -> list[list[int]]:
     return subdivide(bars)
 
 
-def melody_constrained(mode = randint(0, 6)):
+def melody_constrained(mode=randint(0, 6), tonic=randint(0, 11), octave=randint(-1, 4)):
     """
     Rule/constraint-based monophonic melody generator.
+    :param: 0<=mode<=6, 0<=tonic<=11, -1<=octave<=4
     :return:
     - monophonic melody represented as list of bars, i.e. lists of Notes; - list of notes in the key represented by ints; - the mode and octave
     """
     melody_bars = []
-
-    tonic = randint(0, 11)
-    octave = randint(-1, 4)
 
     allowed_notes = [tonic]
     for interval in MODES[mode]:
@@ -138,9 +136,8 @@ def chords_grammar(melody_bars, mode):
     return chords
 
 
-melody_bars, allowed_notes, mode, octave = melody_constrained(5)
+melody_bars, allowed_notes, mode, octave = melody_constrained()
 accomp = chords_grammar(melody_bars, mode)
-
 melody_track = [
     MetaMessage("time_signature", numerator=4, denominator=4),
     MetaMessage("track_name", name="generated melody"),
