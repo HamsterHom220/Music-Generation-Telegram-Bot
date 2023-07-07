@@ -11,7 +11,7 @@ load_dotenv()
 bot = telebot.TeleBot(getenv('SECRET_TOKEN'))
 
 # default values
-common_params = {'velocity': 30, 'mode': "IONIAN", 'offset': -4}
+common_params = {'velocity': 40, 'mode': "IONIAN", 'offset': -2}
 specific_params = dict()
 
 # generators supported at the moment: Evolutionary Algorithm
