@@ -109,7 +109,7 @@ def handle_input_file(msg):
         downloaded_file = bot.download_file(file_info.file_path)
         with open('input.mid', 'wb') as new_file:
             new_file.write(downloaded_file)
-        bot.send_message(msg.chat.id, 'Input file received successfully.')
+        bot.send_message(msg.chat.id, 'Input file accepted.')
     else:
         bot.send_message(msg.chat.id, 'Wrong input format.')
 
