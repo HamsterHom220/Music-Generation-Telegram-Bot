@@ -4,13 +4,19 @@ Limitations: only the most common time signature (4/4) is supported.
 """
 from random import randint
 import music21
-from mido import Message, MetaMessage, MidiFile, MidiTrack
+from mido import Message, MetaMessage, MidiFile, MidiTrack, second2tick, bpm2tempo
+from math import floor,ceil
 from pychord import Chord
+from os import remove
 
 INPUT_FILENAME = "input.mid"
 
 # MIDI note values: 0,1,...,127
-input_file = MidiFile(INPUT_FILENAME)
+input_file = MidiFile(INPUT_FILENAME,type=1)
+try:
+    TEMPO = input_file.tempo
+except:
+    TEMPO = bpm2tempo(120)
 
 # Pairs "mode:scale" (scale - interval pattern to build a mode from a tonic)
 # A mode in music theory is determined by the tonic note and the scale used
@@ -71,23 +77,30 @@ class Generator:
     '''Parent class for all generator algorithms.'''
     # lowest_note_offset: choose even lowest note offset for modes 1,2,4,5,6, and odd for 3,7
     # lowest_note_offset < 0: accomp will be lower than the input, otherwise higher
-    def __init__(self, velocity=30, mode_name="IONIAN", lowest_note_offset=-4):
+    def __init__(self, velocity=40, mode_name="IONIAN", lowest_note_offset=-2):
         self.velocity = velocity
         self.mode = MODES[mode_name]
         self.lowest_note_offset = lowest_note_offset
 
+        self.inp_data_init()
+
+    def inp_data_init(self):
+        """
+        Use before the first generation to create generator cache and for cleaning the cache after each generation.
+        """
         # data to be extracted from input
         self.notes = []
         self.durations = []
         self.total_duration = 0
-        self.bars_count = 0
-        self.residue = 0  # the number of accompaniment chords (notes per track) that need to be generated for the last bar
+        #self.bars_count = 0
+        #self.residue = 0  # the number of accompaniment chords (notes per track) that need to be generated for the last bar
         # if the input ends not exactly at the end of the last bar
         self.lowest_octave = 7
         self.lowest_octave_per_quarter_of_bar = []
         self.key = None  # features a tonic note and its corresponding chords
         self.tonic = None  # base note of a mode
         self.output_info = ""
+        self.bar_quarters = 0
 
     def create_output(self):
         raise NotImplementedError("Each concrete Generator has its own create_output() implementation.")
@@ -103,6 +116,7 @@ class Parser:
         for track in input_file.tracks:
             prev_time = -1
             for token in track:
+                #print(token,type(token))
                 # token.time is the time that elapsed since the previous token's time value
                 # note_on with time=0 is equivalent to note_off
                 if not token.is_meta:
@@ -111,7 +125,7 @@ class Parser:
                     if (token.time!=prev_time) and (token.type == "note_off" or (token.type == "note_on" and token.time != 0)):
                         self.generator.notes.append(token.note % 12)
                         self.generator.durations.append(token.time)
-                        self.generator.total_duration += token.time
+                        #self.generator.total_duration += token.time
                         cur_duration += token.time
 
                         octave = (token.note // 12) - 1
@@ -127,10 +141,14 @@ class Parser:
                         prev_time = token.time
                     # elif token.type == "note_on":
                     #    pass
-        self.generator.bars_count = self.generator.total_duration // TICKS_PER_BAR
+        self.generator.total_duration = ceil(second2tick(input_file.length,tempo=TEMPO,ticks_per_beat=TICKS_PER_BAR))
+        #self.generator.bars_count = self.generator.total_duration // TICKS_PER_BAR // 4
         #print("Bars:",self.generator.bars_count)
-        self.generator.residue = self.generator.total_duration % TICKS_PER_BAR // TICKS_PER_QUARTER_OF_BAR
+        #self.generator.residue = ceil(self.generator.total_duration % TICKS_PER_BAR/ TICKS_PER_QUARTER_OF_BAR) # number of residual bar quarters
         #print("Residue:",self.generator.residue)
+        self.generator.bar_quarters = floor(self.generator.total_duration / TICKS_PER_QUARTER_OF_BAR / 4)
+        #print(self.generator.bar_quarters)
+        #exit()
 
     def identify_key(self):
         key = music21.converter.parse(INPUT_FILENAME).analyze('key')
@@ -185,12 +203,14 @@ class EvolutionaryAlgorithm(Generator):
         octaves check, progression validation, repetition check. For each of them there is a method
         that returns a certain score for each of the given chromosomes. These scores define the adaptation value.
         """
+        if len(chromosome)==0:
+            raise RuntimeError
         note_ind = 0
         chord_ind = 0
         adaptation = 0
         cur_duration = 0
         #print("Computing adaptation for",chromosome,end="...")
-        while chord_ind < 4 * self.bars_count + self.residue:
+        while note_ind < len(self.durations) and chord_ind<self.bar_quarters:#4 * self.bars_count - 1*(self.residue!=0) + self.residue:
             # octave criterion
             cur_duration += self.durations[note_ind]
             if cur_duration >= TICKS_PER_QUARTER_OF_BAR:
@@ -203,17 +223,17 @@ class EvolutionaryAlgorithm(Generator):
             note_ind += 1
 
             # repetition criterion
-            if self.residue > 0:
-                if chord_ind >= 4 * self.bars_count + self.residue - 1:
-                    adaptation += self.check_for_repetitions(chromosome)
-                    return adaptation
-            elif chord_ind >= 4 * self.bars_count:
-                adaptation += self.check_for_repetitions(chromosome)
-                return adaptation
+            # if self.residue > 0:
+            #     if chord_ind >= 4 * self.bars_count - 1*(self.residue!=0) + self.residue:
+            #         adaptation += self.check_for_repetitions(chromosome)
+            #         return adaptation
+            #if chord_ind >= self.bar_quarters:
+            adaptation += self.check_for_repetitions(chromosome)
+                #return adaptation
 
             # progression criterion
-            if note_ind % self.bars_count == 0 and note_ind <= len(chromosome):
-                adaptation += self.validate_progression(chromosome)
+            #if note_ind % self.bars_count == 0 and note_ind <= len(chromosome):
+            adaptation += self.validate_progression(chromosome)
         #print(" Result:",adaptation)
         return adaptation
 
@@ -225,12 +245,15 @@ class EvolutionaryAlgorithm(Generator):
         adaptation value and the chromosome that is its owner.
         Basically, a chromosome is a chord sequence.
         """
+        if self.population_size==0:
+            raise RuntimeError
         self.build_init_chords()
         #print("Generating population...")
         population = []
         for i in range(self.population_size):
             chromosome = []
-            for j in range(4 * self.bars_count + self.residue):
+            #print(self.bar_quarters)
+            for j in range(self.bar_quarters):#4 * self.bars_count - 1*(self.residue!=0) + self.residue):
                 chromosome.append(self.init_chord_seq[randint(0, 6)])
 
             adaptation = self.compute_adaptation(chromosome)
@@ -293,7 +316,7 @@ class EvolutionaryAlgorithm(Generator):
             for j in range(i + 1, r):
                 if chromosome_parts[i] == chromosome_parts[j]:
                     repeats_count += 1
-        #print("Result:",repeats_count)
+        #("Result:",repeats_count)
         return -self.repetition_weight * repeats_count / len(chromosome)
 
     def crossover(self, sorted_population: list[PopulationItem]):
@@ -313,7 +336,8 @@ class EvolutionaryAlgorithm(Generator):
         for j in range(self.population_size // 2):
             parent1 = sorted_population[randint(self.population_size // 2, self.population_size - 1)].chromosome
             parent2 = sorted_population[randint(self.population_size // 2, self.population_size - 1)].chromosome
-            while parent2 == parent1:
+
+            if parent2 == parent1:
                 parent2 = sorted_population[randint(self.population_size // 2, self.population_size - 1)].chromosome
 
             child = []
@@ -342,6 +366,8 @@ class EvolutionaryAlgorithm(Generator):
         for i in range(self.population_size):
             if randint(1, 100) < self.mutation_probability_percent:
                 chromosome_len = len(population[i].chromosome)
+                if chromosome_len<=1:
+                    continue
                 i1 = randint(0, chromosome_len - 1)
                 i2 = randint(0, chromosome_len - 1)
                 while i2 == i1:
@@ -370,8 +396,11 @@ class EvolutionaryAlgorithm(Generator):
                 and "output-accomp.mid" is just the accompaniment written to an empty file.
         """
         accomp_tracks = []
-        accomp_file = MidiFile()
-        inp_metadata = input_file.tracks[1][0]
+        accomp_file = MidiFile(type=1)
+        try:
+            inp_metadata = input_file.tracks[1][0]
+        except IndexError:
+            inp_metadata = MetaMessage("instrument_name",name="default")
         for i in range(3):
             track = MidiTrack()
             track.append(inp_metadata)
@@ -380,13 +409,17 @@ class EvolutionaryAlgorithm(Generator):
             track.append(Message("program_change", program=0, time=0))
             accomp_tracks.append(track)
 
+        input_file.type=1
         final_population = self.generate_accomp()
 
         # choosing the last chromosome as the result
         output_chord_seq = final_population[-1].chromosome
+        #print("seq:",output_chord_seq)
         for i in range(len(output_chord_seq)):
             chord_notes = output_chord_seq[i].components()
             for j in range(len(chord_notes)):
+                if len(self.lowest_octave_per_quarter_of_bar)<len(chord_notes):
+                    self.lowest_octave_per_quarter_of_bar.append(self.lowest_octave)
                 note = \
                     36 + 12 * \
                     (self.lowest_octave_per_quarter_of_bar[j]+self.lowest_note_offset) + \
@@ -395,12 +428,40 @@ class EvolutionaryAlgorithm(Generator):
                 accomp_tracks[j].append(Message("note_off", note=note, velocity=self.velocity, time=TICKS_PER_QUARTER_OF_BAR))
 
         for i in range(3):
-            accomp_tracks[i].append(input_file.tracks[1][-1])
+            #print(input_file.tracks)
+            accomp_tracks[i].append(input_file.tracks[0][-1])
             input_file.tracks.append(accomp_tracks[i])
             accomp_file.tracks.append(accomp_tracks[i])
+
 
         self.output_info += self.tonic
         if "minor" in self.key:
             self.output_info += "m"
+
+        try:
+            remove("output-combined.mid")
+            remove("output-accomp.mid")
+        except OSError:
+            pass
+
+        #print(input_file.tracks)
+        #print(len(input_file.tracks))
+        #print(input_file.type)
         input_file.save("output-combined.mid")
         accomp_file.save("output-accomp.mid")
+        self.inp_data_init()
+
+
+#TEST_____________________________
+# g = EvolutionaryAlgorithm()
+# p = Parser(g)
+# p.extract_notes()
+# p.identify_key()
+# g.create_output()
+
+# input_file = MidiFile("E melody.mid",type=1)
+# g = EvolutionaryAlgorithm()
+# p = Parser(g)
+# p.extract_notes()
+# p.identify_key()
+# g.create_output()
