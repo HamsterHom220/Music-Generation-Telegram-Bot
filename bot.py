@@ -1,11 +1,9 @@
-import os
-
 import telebot
 from telebot import types
 from time import time
 from generators import *
 from dotenv import load_dotenv
-from os import getenv
+from os import getenv,remove
 
 load_dotenv()
 bot = telebot.TeleBot(getenv('SECRET_TOKEN'))
@@ -85,7 +83,7 @@ def callback_message(callback):
                    "Generator-specific settings. To change, use /set <param> <value>\n"
     if cur_generator == 'Evolutionary Algorithm':
         specific_params = {
-            'population': 200, 'generations': 500, 'mutation_probability': 10,
+            'population': 200, 'generations': 200, 'mutation_probability': 10,
             'octave_weight': 1, 'progression_weight': 3, 'repetition_weight': 1, 'radius': 2
         }
         bot.send_message(callback.message.chat.id, settings_msg +
@@ -113,7 +111,7 @@ def handle_input_file(msg):
         downloaded_file = bot.download_file(file_info.file_path)
         with open('input.mid', 'wb') as new_file:
             new_file.write(downloaded_file)
-        bot.send_message(msg.chat.id, 'Input file accepted.')
+        bot.send_message(msg.chat.id, 'Input file accepted. Please, choose a generator by using the /generators command.')
     else:
         bot.send_message(msg.chat.id, 'Wrong input format.')
 
@@ -135,6 +133,7 @@ def generate(msg):
         if cur_generator == 'Evolutionary Algorithm':
             g = EvolutionaryAlgorithm()
             p = Parser(g)
+            p.update_input()
             p.extract_notes()
             p.identify_key()
             g.create_output()
