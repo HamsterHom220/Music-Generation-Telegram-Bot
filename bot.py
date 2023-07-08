@@ -1,10 +1,14 @@
+import os
+
 import telebot
 from telebot import types
 from time import time
 from generators import *
+from dotenv import load_dotenv
+from os import getenv
 
-TOKEN = "???????????????"
-bot = telebot.TeleBot(TOKEN)
+load_dotenv()
+bot = telebot.TeleBot(getenv('SECRET_TOKEN'))
 
 # default values
 common_params = {'velocity': 30, 'mode': "IONIAN", 'offset': -4}
