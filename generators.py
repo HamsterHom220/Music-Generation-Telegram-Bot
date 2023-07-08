@@ -12,11 +12,8 @@ from os import remove
 INPUT_FILENAME = "input.mid"
 
 # MIDI note values: 0,1,...,127
-input_file = MidiFile(INPUT_FILENAME,type=1)
-try:
-    TEMPO = input_file.tempo
-except:
-    TEMPO = bpm2tempo(120)
+input_file = None
+tempo = bpm2tempo(120)
 
 # Pairs "mode:scale" (scale - interval pattern to build a mode from a tonic)
 # A mode in music theory is determined by the tonic note and the scale used
@@ -110,6 +107,14 @@ class Parser:
     def __init__(self, generator):
         # The recipient of processed data
         self.generator = generator
+        
+    def update_input(self):
+        global input_file
+        input_file = MidiFile(INPUT_FILENAME, type=1)
+        try:
+            tempo = input_file.tempo
+        except:
+            tempo = bpm2tempo(120)
 
     def extract_notes(self):
         cur_duration = 0
@@ -141,7 +146,7 @@ class Parser:
                         prev_time = token.time
                     # elif token.type == "note_on":
                     #    pass
-        self.generator.total_duration = ceil(second2tick(input_file.length,tempo=TEMPO,ticks_per_beat=TICKS_PER_BAR))
+        self.generator.total_duration = ceil(second2tick(input_file.length,tempo=tempo,ticks_per_beat=TICKS_PER_BAR))
         #self.generator.bars_count = self.generator.total_duration // TICKS_PER_BAR // 4
         #print("Bars:",self.generator.bars_count)
         #self.generator.residue = ceil(self.generator.total_duration % TICKS_PER_BAR/ TICKS_PER_QUARTER_OF_BAR) # number of residual bar quarters
@@ -164,7 +169,7 @@ class PopulationItem:
 
 class EvolutionaryAlgorithm(Generator):
 
-    def __init__(self, population_size=200, generations=500, mutation_probability_percent=10,
+    def __init__(self, population_size=200, generations=200, mutation_probability_percent=10,
                  octave_weight=1, progression_weight=3, repetition_weight=1, repeats_search_radius=2):
         super().__init__()
         self.population_size = population_size
