@@ -1,20 +1,24 @@
-import telebot
-from telebot import types
+from telebot import types, TeleBot
 from time import time
-from generators import *
+from constants import *
 from dotenv import load_dotenv
 from os import getenv,remove
+import utils
+from mido import MidiFile
+from EvolutionaryAlgorithm import EvolutionaryAlgorithm
 
 load_dotenv()
-bot = telebot.TeleBot(getenv('SECRET_TOKEN'))
+bot = TeleBot(getenv('SECRET_TOKEN'))
 
 # default values
-common_params = {'velocity': 40, 'mode': "IONIAN", 'offset': -2}
+common_params = {'velocity': 40, 'mode': "IONIAN"}
 specific_params = dict()
 
 # generators supported at the moment: Evolutionary Algorithm
 cur_generator = ''
 
+ea = EvolutionaryAlgorithm()
+parser = utils.Parser(None,None)
 
 @bot.message_handler(commands=['start'])
 def start(msg):
@@ -38,13 +42,10 @@ def settings(msg):
     '''
     bot.send_message(msg.chat.id,
                      "Common settings. To change, use /set <param> <value>\n" +
-                     "Available param names: velocity, mode, offset, filename.\n" +
+                     "Available param names: velocity, mode.\n" +
                      "Allowed mode values: IONIAN, DORIAN, PHRYGIAN, LYDIAN, MIXOLYDIAN, AEOLIAN, LOCRIAN.\n" +
-                     "Lowest note offset: choose even lowest note offset for modes 1,2,4,5,6, and odd for 3,7.\n" +
-                     "Lowest note offset < 0: accomp will be lower than the input, otherwise higher.\n\n" +
                      "Velocity: " + str(common_params['velocity']) + "\n" +
-                     "Mode: " + common_params['mode'] + "\n" +
-                     "Lowest note offset: " + str(common_params['offset'])
+                     "Mode: " + common_params['mode'] + "\n"
                      )
 
 
@@ -84,18 +85,21 @@ def callback_message(callback):
     if cur_generator == 'Evolutionary Algorithm':
         specific_params = {
             'population': 200, 'generations': 200, 'mutation_probability': 10,
-            'octave_weight': 1, 'progression_weight': 3, 'repetition_weight': 1, 'radius': 2
+            'octave_weight': 1, 'progression_weight': 3, 'repetition_weight': 1, 'radius': 2, 'offset': -2
         }
         bot.send_message(callback.message.chat.id, settings_msg +
                          "Available param names: population, generations, mutation_probability, octave_weight," + \
-                         "progression_weight, repetition_weight, radius.\n" +
+                         "progression_weight, repetition_weight, radius, offset.\n" +
+                         "Lowest note offset: choose even lowest note offset for modes 1,2,4,5,6, and odd for 3,7.\n" +
+                         "Lowest note offset < 0: accomp will be lower than the input, otherwise higher.\n\n" +
                          "Population size: " + str(specific_params['population']) + "\n" +
                          "Number of generations: " + str(specific_params['generations']) + "\n" +
                          "Mutation probability: " + str(specific_params['mutation_probability']) + "\n" +
                          "Octave weight: " + str(specific_params['octave_weight']) + "\n" +
                          "Progression weight: " + str(specific_params['progression_weight']) + "\n" +
                          "Repetition weight: " + str(specific_params['repetition_weight']) + "\n" +
-                         "Repeats search radius: " + str(specific_params['radius'])
+                         "Repeats search radius: " + str(specific_params['radius']) + "\n"+
+                         "Lowest note offset: " + str(specific_params['offset'])
                          )
     else:
         bot.send_message(callback.message.chat.id, "Error: unsupported generator chosen - " + cur_generator)
@@ -109,7 +113,7 @@ def handle_input_file(msg):
     if msg.document.mime_type == 'audio/midi':
         file_info = bot.get_file(msg.document.file_id)
         downloaded_file = bot.download_file(file_info.file_path)
-        with open('input.mid', 'wb') as new_file:
+        with open(INPUT_FILENAME, 'wb') as new_file:
             new_file.write(downloaded_file)
         bot.send_message(msg.chat.id, 'Input file accepted. Please, choose a generator by using the /generators command.')
     else:
@@ -131,13 +135,13 @@ def generate(msg):
         bot.send_message(msg.chat.id, "Generating via " + cur_generator + "...")
         start = time()
         if cur_generator == 'Evolutionary Algorithm':
-            g = EvolutionaryAlgorithm()
-            p = Parser(g)
-            p.update_input()
-            p.extract_notes()
-            p.identify_key()
-            g.create_output()
-            info += g.output_info
+            parser.generator = ea
+            parser.input_file = MidiFile(INPUT_FILENAME)
+            #parser.update_input()
+            parser.extract_notes()
+            parser.identify_key()
+            ea.create_output(parser.input_file)
+            info += ea.output_info
             output = ["output-combined.mid", "output-accomp.mid"]
         else:
             bot.send_message(msg.chat.id, "Error: unsupported generator chosen - " + cur_generator)
