@@ -2,7 +2,7 @@ from mido import Message, MetaMessage, MidiFile
 from pychord import Chord
 from random import randint, shuffle
 from math import ceil
-from utils import find_notes_in_key, Note
+from utils import find_notes_in_key, Note, adjust_chord
 from constants import *
 
 NUM_OF_BARS = 32
@@ -82,15 +82,7 @@ def chords_grammar(melody_bars, mode, allowed_notes, octave) -> list[list[Note]]
         elif chord_types[chord_type_iter % len(chord_types)] == "MINOR":
             chord_name += "m"
 
-        #chords.append(adjust_chord(Chord(chord_name),allowed_notes,octave))
-        chord = Chord(chord_name)
-        chord_notes = chord.components()
-        non_filtered = []
-        for i in range(len(chord.components())):
-            note = NOTE_TO_NUMBER[chord_notes[i]] + 36 + 12 * octave
-            non_filtered.append(Note(note, 0, 'note_on', i, 30))
-            non_filtered.append(Note(note, TICKS_PER_BAR, 'note_off', i, 30))
-        chords.append(non_filtered)
+        chords.append(adjust_chord(Chord(chord_name),allowed_notes,octave))
         progression_iter += 1
         chord_type_iter += 1
     return chords
