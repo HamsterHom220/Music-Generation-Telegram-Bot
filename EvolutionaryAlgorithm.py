@@ -3,7 +3,7 @@ Library with generators and tools for music generation.
 Limitations: only the most common time signature (4/4) is supported.
 """
 from random import randint
-from mido import Message, MetaMessage, MidiTrack
+from mido import Message, MetaMessage, MidiTrack, MidiFile
 from pychord import Chord
 from Generator import Generator
 from utils import *
@@ -35,6 +35,8 @@ class EvolutionaryAlgorithm(Generator):
         chord_types = CHORD_SEQ_MINOR
         if self.key.split(" ")[-1] == "major":
             chord_types = CHORD_SEQ_MAJOR
+
+        allowed_notes = find_notes_in_key(tonic_num,self.mode)
 
         i = 0
         for chord_type in chord_types:

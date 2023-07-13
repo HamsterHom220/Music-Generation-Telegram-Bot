@@ -18,8 +18,20 @@ MODES = {
     "LOCRIAN": [1, 2, 2, 1, 2, 2, 2]
 }
 
+MODES_LIST = [
+    [2, 2, 1, 2, 2, 2, 1],  # 0 IONIAN ~MAJ
+    [2, 1, 2, 2, 2, 1, 2],  # 1 DORIAN ~min
+    [1, 2, 2, 2, 1, 2, 2],  # 2 PHRYGIAN ~min
+    [2, 2, 2, 1, 2, 2, 1],  # 3 LYDIAN ~maj
+    [2, 2, 1, 2, 2, 1, 2],  # 4 MIXOLYDIAN ~maj
+    [2, 1, 2, 2, 1, 2, 2],  # 5 AEOLIAN ~MIN
+    [1, 2, 2, 1, 2, 2, 2],  # 6 LOCRIAN ~min
+]
+
+MODE_NUM_TO_NAME = ["IONIAN","DORIAN","PHRYGIAN","LYDIAN","MIXOLYDIAN","AEOLIAN","LOCRIAN"]
+
 # Number of ticks representing note and quarter of note in MIDI file
-TICKS_PER_BAR = 1536
+TICKS_PER_BAR = 1920
 
 PROGRESSIONS = [
     [1, 4, 5, 5],

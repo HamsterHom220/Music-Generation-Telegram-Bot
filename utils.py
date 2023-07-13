@@ -1,7 +1,45 @@
 from constants import *
 import music21
 from math import floor,ceil
-from mido import second2tick, MidiFile
+from mido import second2tick, Message, MidiTrack
+from pychord import Chord
+
+class Note:
+    """
+    A class for temporary storage of MIDI message data in mutable form.
+    Type ~ pitch
+    """
+
+    def __init__(self, type: int, timestamp, state:str, track, velocity=50):
+        self.type = type
+        self.timestamp = timestamp
+        self.velocity = velocity
+        self.state = state
+        self.track = track
+
+
+def find_notes_in_key(tonic:int,mode:str):
+    notes_in_key = [tonic]
+    for interval in MODES[mode]:
+        tonic = (tonic + interval) % 12
+        notes_in_key.append(tonic)
+    return notes_in_key
+
+
+# def adjust_chord(chord: Chord, allowed_notes, octave, total_cleaning=True) -> list[Note]:
+#     filtered = []
+#     if not total_cleaning:
+#         # TODO approach where only dissonances are being resolved,
+#         # but notes not in key can be present
+#         return None
+#     chord_notes = chord.components()
+#     for i in range(len(chord.components())):
+#         if NOTE_TO_NUMBER[chord_notes[i]] in allowed_notes:
+#             note = NOTE_TO_NUMBER[chord_notes[i]] + 36 + 12 * octave
+#             filtered.append(Note(note, 0, 'note_on', i,30))
+#             filtered.append(Note(note, TICKS_PER_BAR, 'note_off', i,30))
+#     return filtered
+
 
 class Parser:
     '''
