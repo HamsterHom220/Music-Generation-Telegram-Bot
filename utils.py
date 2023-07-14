@@ -1,8 +1,9 @@
 from constants import *
 import music21
 from math import floor,ceil
-from mido import second2tick, Message, MidiTrack
+from mido import second2tick
 from pychord import Chord
+from random import randint,shuffle
 
 class Note:
     """
@@ -26,14 +27,14 @@ def find_notes_in_key(tonic:int,mode:str):
     return notes_in_key
 
 
-def adjust_chord(chord: Chord, allowed_notes, octave) -> list[Note]:
+def adjust_chord(chord: Chord, allowed_notes, octave, ticks_per_bar) -> list[Note]:
     filtered = []
     chord_notes = chord.components()
     for i in range(len(chord.components())):
         if NOTE_TO_NUMBER[chord_notes[i]] in allowed_notes:
             note = NOTE_TO_NUMBER[chord_notes[i]] + 36 + 12 * octave
             filtered.append(Note(note, 0, 'note_on', i,30))
-            filtered.append(Note(note, TICKS_PER_BAR, 'note_off', i,30))
+            filtered.append(Note(note, ticks_per_bar, 'note_off', i,30))
     return filtered
 
 
@@ -41,10 +42,11 @@ class Parser:
     '''
     Processes the input file for generators that require it.
     '''
-    def __init__(self, generator,input_file):
+    def __init__(self, generator,input_file,ticks_per_bar):
         # The recipient of processed data
         self.generator = generator
         self.input_file = input_file
+        self.ticks_per_bar = ticks_per_bar
 
     # def update_input(self):
     #     self.input_file = MidiFile(INPUT_FILENAME, type=1)
@@ -68,18 +70,36 @@ class Parser:
                         if octave < self.generator.lowest_octave:
                             self.generator.lowest_octave = octave
 
-                        if cur_duration >= TICKS_PER_BAR//4:
-                            for i in range(cur_duration // TICKS_PER_BAR//4):
+                        if cur_duration >= self.ticks_per_bar//4:
+                            for i in range(cur_duration // self.ticks_per_bar//4):
                                 self.generator.lowest_octave_per_quarter_of_bar.append(self.generator.lowest_octave)
-                            cur_duration %= TICKS_PER_BAR//4
+                            cur_duration %= self.ticks_per_bar//4
                             self.generator.lowest_octave = 7
 
                         prev_time = token.time
 
-        self.generator.total_duration = ceil(second2tick(self.input_file.length,tempo=TEMPO,ticks_per_beat=TICKS_PER_BAR))
-        self.generator.bar_quarters = floor(self.generator.total_duration / (TICKS_PER_BAR // 4) / 4)
+        self.generator.total_duration = ceil(second2tick(self.input_file.length,tempo=TEMPO,ticks_per_beat=self.ticks_per_bar))
+        self.generator.bar_quarters = floor(self.generator.total_duration / (self.ticks_per_bar // 4) / 4)
 
     def identify_key(self):
         key = music21.converter.parse(INPUT_FILENAME).analyze('key')
         self.generator.key = key.name
         self.generator.tonic = key.tonic.name
+
+
+def subdivide(bars: list[list[int]]) -> list[list[int]]:
+    '''
+    Function for subdividing a whole note into a random sequence of notes >= 1/8.
+    Initial undivided notes sequence is represented as the array [[1]..[1]] with length==num of bars.
+    :param bars: list of ordered lists with note duration denominators for each bar
+    :return: bars: list of ordered lists with note duration denominators for each bar
+    '''
+    if bars[0][0] == 8:
+        return bars
+    divide = randint(0, 1)
+    if divide:
+        bars[0][0] *= 2
+        bars[0].insert(0, bars[0][0])
+        shuffle(bars[0])
+        shuffle(bars)
+    return subdivide(bars)
