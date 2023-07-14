@@ -2,9 +2,7 @@
 Library with generators and tools for music generation.
 Limitations: only the most common time signature (4/4) is supported.
 """
-from random import randint
-from mido import Message, MetaMessage, MidiTrack, MidiFile
-from pychord import Chord
+from mido import MetaMessage
 from Generator import Generator
 from utils import *
 
@@ -16,9 +14,11 @@ class PopulationItem:
 
 
 class EvolutionaryAlgorithm(Generator):
-
-    def __init__(self, population_size=200, generations=200, mutation_probability_percent=10,
-                 octave_weight=1, progression_weight=3, repetition_weight=1, repeats_search_radius=2):
+    # lowest_note_offset: choose even lowest note offset for modes 1,2,4,5,6, and odd for 3,7
+    # lowest_note_offset < 0: accomp will be lower than the input, otherwise higher
+    def __init__(self, population_size=DEFAULT_POPULATION, generations=DEFAULT_GENERATIONS, mutation_probability_percent=DEFAULT_MUTATION_PROBABILITY,
+                 octave_weight=DEFAULT_OCTAVE_W, progression_weight=DEFAULT_PROGRESSION_W, repetition_weight=DEFAULT_REPETITION_W, repeats_search_radius=DEFAULT_RADIUS,lowest_note_offset=DEFAULT_OFFSET):
+        self.ticks_per_bar = 1536
         super().__init__()
         self.population_size = population_size
         self.generations = generations
@@ -28,15 +28,32 @@ class EvolutionaryAlgorithm(Generator):
         self.repetition_weight = repetition_weight
         self.init_chord_seq = []
         self.repeats_search_radius = repeats_search_radius
+        self.lowest_note_offset = lowest_note_offset
+        self.input_file = None
+        self.inp_data_init()
+
+    def inp_data_init(self):
+        # data to be extracted from input
+        self.notes = []
+        self.durations = []
+        self.total_duration = 0
+        self.lowest_octave = 7
+        self.lowest_octave_per_quarter_of_bar = []
+        self.key = None  # features a tonic note and its corresponding chords
+        self.tonic = None  # base note of a mode
+        self.output_info = ""
+        self.bar_quarters = 0
 
     def build_init_chords(self):
         """Generates and returns chord sequences in form of lists with strings based on the data collected by parser according to the music theory principles."""
         tonic_num = NOTE_TO_NUMBER[self.tonic]
-        chord_types = CHORD_SEQ_MINOR
-        if self.key.split(" ")[-1] == "major":
+        # chord_types = CHORD_SEQ_MINOR
+        # if self.key.split(" ")[-1] == "major":
+        #     chord_types = CHORD_SEQ_MAJOR
+        if self.mode in [0, 3, 4]:
             chord_types = CHORD_SEQ_MAJOR
-
-        allowed_notes = find_notes_in_key(tonic_num,self.mode)
+        else:
+            chord_types = CHORD_SEQ_MINOR
 
         i = 0
         for chord_type in chord_types:
@@ -66,11 +83,11 @@ class EvolutionaryAlgorithm(Generator):
         while note_ind < len(self.durations) and chord_ind<self.bar_quarters:
             # octave criterion
             cur_duration += self.durations[note_ind]
-            if cur_duration >= TICKS_PER_BAR//4:
-                for _ in range(cur_duration // TICKS_PER_BAR // 4):
+            if cur_duration >= self.ticks_per_bar//4:
+                for _ in range(cur_duration // self.ticks_per_bar // 4):
                     adaptation += self.check_for_octaves(chromosome, note_ind, chord_ind)
                     chord_ind += 1
-                cur_duration %= TICKS_PER_BAR//4
+                cur_duration %= self.ticks_per_bar//4
             else:
                 adaptation += self.check_for_octaves(chromosome, note_ind, chord_ind)
             note_ind += 1
@@ -219,7 +236,8 @@ class EvolutionaryAlgorithm(Generator):
             final_population = sorted(final_population, key=lambda x: x.adaptation)
         return final_population
 
-    def create_output(self,input_file):
+
+    def create_output(self):
         """
         Takes: final_population, self.lowest_octave_per_quarter_of_bar, args passed to constructors.
         Produces: 2 MIDI files, such that "output-combined.mid" is the initial file + accompaniment;
@@ -229,7 +247,7 @@ class EvolutionaryAlgorithm(Generator):
         accomp_tracks = []
         accomp_file = MidiFile(type=1)
         try:
-            inp_metadata = input_file.tracks[1][0]
+            inp_metadata = self.input_file.tracks[1][0]
         except IndexError:
             inp_metadata = MetaMessage("instrument_name",name="default")
         for i in range(3):
@@ -240,7 +258,7 @@ class EvolutionaryAlgorithm(Generator):
             track.append(Message("program_change", program=0, time=0))
             accomp_tracks.append(track)
 
-        input_file.type=1
+        self.input_file.type=1
         final_population = self.generate_accomp()
 
         # choosing the last chromosome as the result
@@ -255,18 +273,18 @@ class EvolutionaryAlgorithm(Generator):
                     (self.lowest_octave_per_quarter_of_bar[j]+self.lowest_note_offset) + \
                     NOTE_TO_NUMBER[chord_notes[j]]
                 accomp_tracks[j].append(Message("note_on", note=note, velocity=self.velocity, time=0))
-                accomp_tracks[j].append(Message("note_off", note=note, velocity=self.velocity, time=TICKS_PER_BAR//4))
+                accomp_tracks[j].append(Message("note_off", note=note, velocity=self.velocity, time=self.ticks_per_bar//4))
 
         for i in range(3):
-            accomp_tracks[i].append(input_file.tracks[0][-1])
-            input_file.tracks.append(accomp_tracks[i])
+            accomp_tracks[i].append(self.input_file.tracks[0][-1])
+            self.input_file.tracks.append(accomp_tracks[i])
             accomp_file.tracks.append(accomp_tracks[i])
 
         self.output_info += self.tonic
         if "minor" in self.key:
             self.output_info += "m"
 
-        input_file.save("output-combined.mid")
+        self.input_file.save("output-combined.mid")
         accomp_file.save("output-accomp.mid")
         self.inp_data_init()
 
