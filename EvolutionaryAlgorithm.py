@@ -2,7 +2,7 @@
 Library with generators and tools for music generation.
 Limitations: only the most common time signature (4/4) is supported.
 """
-from mido import MetaMessage
+from mido import MetaMessage, MidiFile, MidiTrack, Message
 from Generator import Generator
 from utils import *
 
