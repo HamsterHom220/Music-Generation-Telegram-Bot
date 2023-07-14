@@ -52,6 +52,8 @@ def settings(msg):
     '''
     bot.send_message(msg.chat.id,
                      "Common settings. To change, use /set <param> <value>\n" +
+                     "Modes description:\n"+
+
                      "Available param names: velocity, mode.\n" +
                      "Allowed mode values: IONIAN, DORIAN, PHRYGIAN, LYDIAN, MIXOLYDIAN, AEOLIAN, LOCRIAN.\n" +
                      "Velocity: " + str(common_params['velocity']) + "\n" +
